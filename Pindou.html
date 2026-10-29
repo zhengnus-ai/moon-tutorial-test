@@ -1,0 +1,3539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>WorkBuddy 拼豆工坊 · 交互拼豆图纸生成与色彩风格设计工具</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      overflow: hidden;
+    }
+    .mono-font {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.45);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+    .checkerboard-bg {
+      background-color: #182234;
+      background-image:
+        linear-gradient(45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1e293b 75%),
+        linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+    input[type="range"] {
+      accent-color: #ef4444;
+    }
+    .style-card-active {
+      border-color: #ef4444 !important;
+      background: rgba(239, 68, 68, 0.12) !important;
+      box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4);
+    }
+    .size-card-active {
+      border-color: #ef4444 !important;
+      background: rgba(239, 68, 68, 0.14) !important;
+    }
+    .brand-chip-active {
+      border-color: #ef4444 !important;
+      background: rgba(239, 68, 68, 0.16) !important;
+      color: #fca5a5 !important;
+    }
+    .tool-btn-active {
+      background: #ef4444 !important;
+      color: #ffffff !important;
+      border-color: #ef4444 !important;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col bg-slate-950 text-slate-100 select-none overflow-hidden">
+
+  <!-- Hidden file input for local image upload -->
+  <input id="fileUploadInput" type="file" accept="image/*" class="hidden" />
+
+  <!-- Top Navigation Bar -->
+  <header class="h-14 shrink-0 bg-slate-900/95 border-b border-slate-800 px-3 lg:px-5 flex items-center justify-between gap-2 z-30">
+    <!-- Left: Artwork Title & Creation Timestamp -->
+    <div class="flex items-center gap-2.5 min-w-0">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-amber-500 flex items-center justify-center shadow-md shadow-rose-500/20 shrink-0">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="8" cy="8" r="3" stroke-width="2.2"/>
+          <circle cx="16" cy="8" r="3" stroke-width="2.2"/>
+          <circle cx="8" cy="16" r="3" stroke-width="2.2"/>
+          <circle cx="16" cy="16" r="3" stroke-width="2.2"/>
+        </svg>
+      </div>
+      <div class="min-w-0">
+        <div class="flex items-center gap-1.5">
+          <input id="projectTitleInput" type="text" value="鎏金曦光战锤·交互拼豆图纸"
+            class="bg-transparent text-sm sm:text-base font-bold text-slate-100 focus:outline-none focus:bg-slate-800 px-1.5 py-0.5 rounded truncate max-w-[160px] sm:max-w-[240px]"
+            title="点击修改作品名称" />
+          <span id="styleBadgeHeader" class="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-500/15 text-rose-300 border border-rose-500/30">
+            原色还原
+          </span>
+        </div>
+        <div id="creationTimeText" class="text-[11px] text-slate-400 truncate px-1.5">
+          创建时间 2026年10月29日 09:37:14
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: View Mode Tabs (原图 / 转换图 / 拼豆图纸) & 2D/3D Angle Switch -->
+    <div class="flex items-center gap-2 sm:gap-3">
+      <div class="bg-slate-800/90 p-1 rounded-lg border border-slate-700/70 flex items-center text-xs font-medium">
+        <button id="viewTabOriginal" type="button" class="px-2.5 sm:px-3 py-1.5 rounded-md text-slate-300 hover:text-white transition">
+          原图
+        </button>
+        <button id="viewTabConverted" type="button" class="px-2.5 sm:px-3 py-1.5 rounded-md text-slate-300 hover:text-white transition">
+          转换图
+        </button>
+        <button id="viewTabPattern" type="button" class="px-2.5 sm:px-3 py-1.5 rounded-md bg-rose-500 text-white shadow-sm transition">
+          拼豆图纸
+        </button>
+      </div>
+
+      <!-- 2D / 3D Perspective Switcher (visible in 拼豆图纸 view) -->
+      <div id="perspectiveSwitchGroup" class="hidden sm:flex items-center gap-1.5 bg-slate-800/90 px-2 py-1 rounded-lg border border-slate-700/70 text-xs">
+        <span class="text-slate-400 text-[11px] px-1">视角</span>
+        <button id="angle2DBtn" type="button" class="px-2 py-1 rounded bg-slate-700 text-white font-medium transition">
+          平面
+        </button>
+        <button id="angle3DBtn" type="button" class="px-2 py-1 rounded text-slate-400 hover:text-white transition">
+          3D
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: Upload Button, Layout Switcher, Save Snapshot, Export -->
+    <div class="flex items-center gap-1.5 sm:gap-2">
+      <button id="topUploadBtn" type="button"
+        class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 flex items-center gap-1.5 transition"
+        title="上传自定义图片生成拼豆方案">
+        <svg class="w-3.5 h-3.5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+        </svg>
+        <span class="hidden sm:inline">上传图片</span>
+      </button>
+
+      <!-- Layout Switcher: Left Sidebar / Bottom Drawer / Right Sidebar -->
+      <div class="hidden md:flex items-center bg-slate-800/90 p-0.5 rounded-lg border border-slate-700/70" title="切换控制面板位置">
+        <button id="layoutLeftBtn" type="button" class="p-1.5 rounded text-slate-400 hover:text-white transition" title="左侧边栏模式">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="9" y1="3" x2="9" y2="21"/>
+          </svg>
+        </button>
+        <button id="layoutBottomBtn" type="button" class="p-1.5 rounded text-slate-400 hover:text-white transition" title="底部抽屉模式">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="3" y1="15" x2="21" y2="15"/>
+          </svg>
+        </button>
+        <button id="layoutRightBtn" type="button" class="p-1.5 rounded bg-slate-700 text-white transition" title="右侧边栏模式">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="15" y1="3" x2="15" y2="21"/>
+          </svg>
+        </button>
+      </div>
+
+      <button id="saveVersionBtn" type="button"
+        class="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition"
+        title="保存当前图纸快照版本">
+        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span>保存</span>
+      </button>
+
+      <button id="topExportBtn" type="button"
+        class="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-md shadow-rose-600/30 flex items-center gap-1.5 transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <span>导出</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace Container (Dynamic flex direction for Left / Right / Bottom panel layouts) -->
+  <div id="mainWorkspace" class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+    <!-- Interactive Canvas Stage -->
+    <main id="canvasStageContainer" class="flex-1 relative overflow-hidden checkerboard-bg flex flex-col">
+      <!-- Top Coordinate Ruler -->
+      <div class="h-6 bg-slate-900/90 border-b border-slate-800 flex items-center shrink-0 z-10">
+        <div class="w-7 h-6 border-r border-slate-800 flex items-center justify-center text-[10px] text-slate-500 mono-font shrink-0">
+          XY
+        </div>
+        <canvas id="topRulerCanvas" class="flex-1 h-6 block"></canvas>
+      </div>
+
+      <!-- Left Coordinate Ruler + Main Interactive Viewport -->
+      <div class="flex-1 flex relative overflow-hidden">
+        <div class="w-7 bg-slate-900/90 border-r border-slate-800 shrink-0 z-10">
+          <canvas id="leftRulerCanvas" class="w-7 h-full block"></canvas>
+        </div>
+
+        <!-- Viewport Area -->
+        <div id="viewportWrapper" class="flex-1 relative overflow-hidden cursor-grab active:cursor-grabbing">
+          <canvas id="mainPatternCanvas" class="block w-full h-full"></canvas>
+
+          <!-- Drag & Drop Overlay -->
+          <div id="dropzoneOverlay" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-sm border-2 border-dashed border-rose-500 rounded-xl m-4 flex flex-col items-center justify-center z-40 pointer-events-none">
+            <div class="w-16 h-16 rounded-2xl bg-rose-500/20 flex items-center justify-center text-rose-400 mb-3">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+              </svg>
+            </div>
+            <p class="text-base font-bold text-white">松开鼠标上传图片并自动生成拼豆方案</p>
+            <p class="text-xs text-slate-400 mt-1">支持 PNG / JPG / WebP / GIF 图像</p>
+          </div>
+
+          <!-- Top-Left Live Status Pill (Grid size, Active Bead Count, Hover Info, Highlighted Color Banner) -->
+          <div class="absolute top-3 left-3 flex flex-wrap items-center gap-2 pointer-events-none z-20">
+            <div class="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs flex items-center gap-2 shadow-lg pointer-events-auto">
+              <span id="canvasStatDimensions" class="font-semibold text-slate-200 mono-font">52×52</span>
+              <span id="canvasStatPhysicalSize" class="text-[11px] text-sky-300 mono-font hidden sm:inline">(26.0×26.0cm)</span>
+              <span class="text-slate-600">|</span>
+              <span id="canvasStatBeads" class="text-rose-400 font-medium">共 800 颗</span>
+              <span class="text-slate-600">|</span>
+              <span id="canvasStatColors" class="text-amber-300 font-medium">16 色</span>
+              <button id="quickBoardSizeModalBtn" type="button"
+                class="ml-1 px-2 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/35 border border-rose-500/40 text-rose-300 text-[11px] font-semibold transition"
+                title="自定义整体图版尺寸、拼板拼接与物理尺寸">
+                自定义图版尺寸
+              </button>
+            </div>
+
+            <div id="hoverCellBadge" class="hidden bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs items-center gap-2 shadow-lg">
+              <span id="hoverCoordText" class="mono-font text-slate-400">(12, 18)</span>
+              <span id="hoverSwatchDot" class="w-3 h-3 rounded-full inline-block border border-white/30"></span>
+              <span id="hoverColorCodeText" class="font-bold text-white mono-font">H7</span>
+              <span id="hoverColorNameText" class="text-slate-300">纯黑</span>
+            </div>
+
+            <!-- Highlight mode banner in Step 3 or anytime a color is solo-highlighted -->
+            <div id="highlightBanner" class="hidden pointer-events-auto bg-amber-500/95 text-slate-950 font-semibold rounded-lg px-3 py-1.5 text-xs items-center gap-2 shadow-lg">
+              <span id="highlightBannerText">正在高亮：H7 (306 颗)</span>
+              <button id="clearHighlightBtn" type="button" class="px-1.5 py-0.5 rounded bg-slate-950/20 hover:bg-slate-950/30 text-[11px]">
+                取消高亮
+              </button>
+            </div>
+          </div>
+
+          <!-- 3D Tilt Control Bar (Shown when 3D view is active) -->
+          <div id="view3DControlBar" class="hidden absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs items-center gap-3 shadow-xl z-20">
+            <span class="text-rose-400 font-semibold">3D 立体视角</span>
+            <label class="flex items-center gap-1.5 text-slate-300">
+              <span>倾角</span>
+              <input id="tilt3DSlider" type="range" min="15" max="60" value="38" class="w-20" />
+            </label>
+            <label class="flex items-center gap-1.5 text-slate-300">
+              <span>旋转</span>
+              <input id="rotate3DSlider" type="range" min="-35" max="35" value="-14" class="w-20" />
+            </label>
+          </div>
+
+          <!-- Floating Right Toolbar (镜像 / 模拟烫豆 / 色号 / + / - / 恢复 / 100%) -->
+          <div class="absolute right-3 top-3 flex flex-col gap-1.5 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 p-1.5 rounded-xl shadow-2xl z-20">
+            <button id="mirrorFlipBtn" type="button"
+              class="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 flex flex-col items-center gap-0.5 transition"
+              title="水平镜像翻转图纸">
+              <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+              </svg>
+              <span class="text-[10px]">镜像</span>
+            </button>
+
+            <button id="ironMeltSimBtn" type="button"
+              class="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 flex flex-col items-center gap-0.5 transition"
+              title="切换模拟熨烫融豆效果">
+              <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              <span class="text-[10px]">模拟烫豆</span>
+            </button>
+
+            <button id="toggleCodeLabelsBtn" type="button"
+              class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-rose-400 flex flex-col items-center gap-0.5 transition"
+              title="显示或隐藏豆子上的色号文字">
+              <span class="mono-font text-xs font-bold leading-none">H7</span>
+              <span class="text-[10px]">色号</span>
+            </button>
+
+            <div class="h-px bg-slate-800 my-0.5"></div>
+
+            <button id="zoomInBtn" type="button"
+              class="p-1.5 rounded-lg text-slate-200 hover:bg-slate-800 flex items-center justify-center text-base font-bold transition"
+              title="放大画布">+</button>
+
+            <div id="zoomPercentLabel" class="text-[10px] mono-font text-center text-slate-400 py-0.5">
+              100%
+            </div>
+
+            <button id="zoomOutBtn" type="button"
+              class="p-1.5 rounded-lg text-slate-200 hover:bg-slate-800 flex items-center justify-center text-base font-bold transition"
+              title="缩小画布">−</button>
+
+            <button id="zoomResetBtn" type="button"
+              class="px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-slate-800 transition"
+              title="重置缩放与居中位置">
+              恢复
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Control Panel Sidebar / Drawer -->
+    <aside id="controlPanelAside" class="w-full md:w-[390px] lg:w-[420px] h-[48vh] md:h-full bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800 flex flex-col shrink-0 z-20">
+
+      <!-- 3-Step Navigation Header -->
+      <div class="grid grid-cols-3 border-b border-slate-800 bg-slate-900/90 p-1.5 gap-1 shrink-0">
+        <button id="stepTab1" type="button"
+          class="py-2 px-2 rounded-lg text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/40 flex items-center justify-center gap-1.5 transition">
+          <span class="w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center">1</span>
+          <span>规格调整</span>
+        </button>
+        <button id="stepTab2" type="button"
+          class="py-2 px-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center gap-1.5 transition">
+          <span class="w-4 h-4 rounded-full bg-slate-700 text-slate-300 text-[10px] flex items-center justify-center">2</span>
+          <span>图纸编辑</span>
+        </button>
+        <button id="stepTab3" type="button"
+          class="py-2 px-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center gap-1.5 transition">
+          <span class="w-4 h-4 rounded-full bg-slate-700 text-slate-300 text-[10px] flex items-center justify-center">3</span>
+          <span>辅助拼豆</span>
+        </button>
+      </div>
+
+      <!-- STEP 1: 规格调整 (Specification & Color Style Adjustment) -->
+      <div id="stepPanel1" class="flex-1 overflow-y-auto p-4 space-y-5">
+
+        <!-- Section 1: Image Upload & Preset Gallery -->
+        <div class="bg-slate-800/50 border border-slate-700/70 rounded-xl p-3.5 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+              <span class="w-1.5 h-3.5 rounded bg-rose-500"></span>
+              图片上传与示例图库
+            </span>
+            <label class="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
+              <input id="removeBgCheckbox" type="checkbox" checked class="rounded text-rose-500 focus:ring-0" />
+              <span>自动去纯色背景</span>
+            </label>
+          </div>
+
+          <!-- Upload Dropzone Button -->
+          <button id="step1UploadCardBtn" type="button"
+            class="w-full py-2.5 px-3 rounded-xl border border-dashed border-rose-500/50 bg-rose-500/10 hover:bg-rose-500/15 text-rose-300 flex items-center justify-center gap-2 text-xs font-semibold transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+            </svg>
+            <span>点击上传本地图片（或直接拖拽图片到画布）</span>
+          </button>
+
+          <!-- Preset Sample Images -->
+          <div>
+            <div class="text-[11px] text-slate-400 mb-1.5">内置示例图案（点击即刻切换）：</div>
+            <div class="grid grid-cols-4 gap-2">
+              <button id="presetBtnWarhammer" type="button"
+                class="p-1.5 rounded-lg border border-rose-500 bg-rose-500/10 text-center group transition">
+                <img id="warhammerThumbImg" src="data:image/jpeg;base64,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" alt="鎏金战锤" class="w-full h-11 object-contain rounded bg-white mb-1" />
+                <div class="text-[10px] font-medium text-slate-200 truncate">鎏金战锤</div>
+              </button>
+              <button id="presetBtnPotion" type="button"
+                class="p-1.5 rounded-lg border border-slate-700 hover:border-slate-500 bg-slate-800/70 text-center transition">
+                <div class="w-full h-11 rounded bg-slate-900 flex items-center justify-center text-lg mb-1">🧪</div>
+                <div class="text-[10px] font-medium text-slate-300 truncate">星月魔药</div>
+              </button>
+              <button id="presetBtnShiba" type="button"
+                class="p-1.5 rounded-lg border border-slate-700 hover:border-slate-500 bg-slate-800/70 text-center transition">
+                <div class="w-full h-11 rounded bg-slate-900 flex items-center justify-center text-lg mb-1">🐕</div>
+                <div class="text-[10px] font-medium text-slate-300 truncate">霓虹柴犬</div>
+              </button>
+              <button id="presetBtnCatCake" type="button"
+                class="p-1.5 rounded-lg border border-slate-700 hover:border-slate-500 bg-slate-800/70 text-center transition">
+                <div class="w-full h-11 rounded bg-slate-900 flex items-center justify-center text-lg mb-1">🍓</div>
+                <div class="text-[10px] font-medium text-slate-300 truncate">甜心莓猫</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Color Style Selection (色彩风格选择 - Key User Feature) -->
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+              <span class="w-1.5 h-3.5 rounded bg-rose-500"></span>
+              色彩风格 (Color Style)
+            </span>
+            <span id="currentStyleTag" class="text-[11px] text-rose-400 font-medium">原色还原 · CIELAB精准配比</span>
+          </div>
+
+          <div id="colorStyleGrid" class="grid grid-cols-2 gap-2">
+            <!-- Populated dynamically or bound via JS -->
+          </div>
+
+          <!-- Dithering & Color Tone Fine-tuning -->
+          <div class="bg-slate-800/50 border border-slate-700/70 rounded-xl p-3 space-y-2.5 mt-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-300 font-medium">色彩过渡算法</span>
+              <div class="flex bg-slate-900 p-0.5 rounded-lg border border-slate-700 text-[11px]">
+                <button id="ditherCleanBtn" type="button" class="px-2 py-1 rounded bg-rose-500 text-white font-medium transition">
+                  干净色块
+                </button>
+                <button id="ditherFloydBtn" type="button" class="px-2 py-1 rounded text-slate-400 hover:text-white transition">
+                  抖动渐变
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 pt-1">
+              <label class="block text-[11px] text-slate-400">
+                <div class="flex justify-between mb-1">
+                  <span>明暗修正</span>
+                  <span id="brightnessValText" class="mono-font text-slate-300">0</span>
+                </div>
+                <input id="brightnessSlider" type="range" min="-40" max="40" value="0" class="w-full" />
+              </label>
+              <label class="block text-[11px] text-slate-400">
+                <div class="flex justify-between mb-1">
+                  <span>对比强化</span>
+                  <span id="contrastValText" class="mono-font text-slate-300">0</span>
+                </div>
+                <input id="contrastSlider" type="range" min="-40" max="50" value="0" class="w-full" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Overall Board Size Customization (整体图版尺寸自定义) -->
+        <div id="boardSizeCustomSection" class="space-y-3 bg-slate-800/40 border border-slate-700/70 rounded-xl p-3.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+              <span class="w-1.5 h-3.5 rounded bg-rose-500"></span>
+              整体图版尺寸（支持全自定义）
+            </span>
+            <span id="boardPhysicalSummaryText" class="text-[11px] text-sky-400 font-medium mono-font">26.0 × 26.0 cm</span>
+          </div>
+
+          <!-- Mode Tabs: 按格数自定义 | 按拼板拼接 | 按物理尺寸(cm) -->
+          <div class="grid grid-cols-3 bg-slate-900/90 p-0.5 rounded-lg border border-slate-700/80 text-[11px] font-medium">
+            <button id="sizeModeGridBtn" type="button" class="py-1.5 rounded-md bg-rose-500 text-white transition">
+              按总格数
+            </button>
+            <button id="sizeModeTileBtn" type="button" class="py-1.5 rounded-md text-slate-400 hover:text-white transition">
+              按拼板拼接
+            </button>
+            <button id="sizeModeCmBtn" type="button" class="py-1.5 rounded-md text-slate-400 hover:text-white transition">
+              按厘米(cm)
+            </button>
+          </div>
+
+          <!-- Sub-panel A: Direct Width x Height Grid Customization -->
+          <div id="sizePanelGridMode" class="space-y-2.5">
+            <div class="flex items-center gap-1.5 bg-slate-900/80 border border-slate-700/80 rounded-xl p-2">
+              <span class="text-[11px] text-slate-300 px-1 shrink-0">宽×高(格)</span>
+              <input id="customWidthInput" type="number" min="10" max="260" value="52"
+                class="w-16 bg-slate-800 border border-slate-600 rounded-lg px-1.5 py-1 text-xs text-center mono-font text-white focus:border-rose-500 focus:outline-none" />
+              <button id="lockAspectBtn" type="button"
+                class="p-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs text-rose-400 transition"
+                title="锁定/解锁宽高比">
+                🔗
+              </button>
+              <input id="customHeightInput" type="number" min="10" max="260" value="52"
+                class="w-16 bg-slate-800 border border-slate-600 rounded-lg px-1.5 py-1 text-xs text-center mono-font text-white focus:border-rose-500 focus:outline-none" />
+              <button id="applyCustomSizeBtn" type="button"
+                class="ml-auto px-3 py-1 rounded-lg bg-rose-500 hover:bg-rose-400 text-white text-xs font-semibold transition">
+                生成
+              </button>
+            </div>
+
+            <!-- Interactive Width & Height Sliders -->
+            <div class="grid grid-cols-2 gap-2.5 px-1">
+              <label class="block text-[11px] text-slate-400">
+                <div class="flex justify-between mb-0.5">
+                  <span>图版宽度</span>
+                  <span id="sliderWidthValText" class="mono-font text-slate-200">52 格</span>
+                </div>
+                <input id="boardWidthSlider" type="range" min="10" max="260" value="52" class="w-full" />
+              </label>
+              <label class="block text-[11px] text-slate-400">
+                <div class="flex justify-between mb-0.5">
+                  <span>图版高度</span>
+                  <span id="sliderHeightValText" class="mono-font text-slate-200">52 格</span>
+                </div>
+                <input id="boardHeightSlider" type="range" min="10" max="260" value="52" class="w-full" />
+              </label>
+            </div>
+
+            <!-- Quick Aspect Ratio & Orientation Tools -->
+            <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <button id="fitImageAspectBtn" type="button"
+                class="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-300 transition">
+                📐 按原图比例自适应
+              </button>
+              <button id="swapBoardOrientationBtn" type="button"
+                class="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-300 transition">
+                🔄 横竖宽高互换
+              </button>
+              <button id="resizeKeepEditsBtn" type="button"
+                class="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] text-amber-300 transition"
+                title="仅扩缩整体图版边界，保留已手绘修改的豆子">
+                ✨ 保留手绘扩缩
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-panel B: Multi-Board Splicing Mode (按拼板拼接) -->
+          <div id="sizePanelTileMode" class="hidden space-y-2.5 bg-slate-900/75 border border-slate-700/80 rounded-xl p-2.5">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-300 font-medium">单块拼豆底板规格：</span>
+              <select id="singleTileSpecSelect" class="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-xs text-white focus:outline-none">
+                <option value="26">26×26 格 (通用中型板)</option>
+                <option value="29">29×29 格 (Perler标准方板)</option>
+                <option value="36">36×36 格 (大号方板)</option>
+                <option value="50">50×50 格 (2.6mm迷你豆板)</option>
+                <option value="52" selected>52×52 格 (特大号整板)</option>
+                <option value="custom">自定义单板格数</option>
+              </select>
+            </div>
+
+            <div id="customSingleTileRow" class="hidden flex items-center justify-between text-[11px] pt-1">
+              <span class="text-slate-400">单板宽×高(格)：</span>
+              <div class="flex items-center gap-1.5">
+                <input id="customUnitWInput" type="number" min="10" max="100" value="29" class="w-14 bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-center mono-font text-white" />
+                <span>×</span>
+                <input id="customUnitHInput" type="number" min="10" max="100" value="29" class="w-14 bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-center mono-font text-white" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5 pt-1">
+              <label class="block text-[11px] text-slate-300">
+                <div class="flex justify-between mb-1">
+                  <span>横向拼接块数</span>
+                  <span id="tileCountXText" class="mono-font text-rose-400 font-bold">1 块</span>
+                </div>
+                <input id="tileCountXSlider" type="range" min="1" max="6" value="1" class="w-full" />
+              </label>
+              <label class="block text-[11px] text-slate-300">
+                <div class="flex justify-between mb-1">
+                  <span>纵向拼接块数</span>
+                  <span id="tileCountYText" class="mono-font text-rose-400 font-bold">1 块</span>
+                </div>
+                <input id="tileCountYSlider" type="range" min="1" max="6" value="1" class="w-full" />
+              </label>
+            </div>
+
+            <div class="flex items-center justify-between pt-1 border-t border-slate-800 text-[11px]">
+              <label class="flex items-center gap-1.5 text-slate-300 cursor-pointer">
+                <input id="showTileSplitLinesCheck" type="checkbox" checked class="rounded text-rose-500 focus:ring-0" />
+                <span>画布显示分板拼接线 (A1/A2...)</span>
+              </label>
+              <span id="tileTotalComputedText" class="mono-font text-amber-300 font-semibold">总计 52×52 格</span>
+            </div>
+          </div>
+
+          <!-- Sub-panel C: Physical Dimension (cm) Mode -->
+          <div id="sizePanelCmMode" class="hidden space-y-2.5 bg-slate-900/75 border border-slate-700/80 rounded-xl p-2.5">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-300 font-medium">拼豆颗粒直径规格：</span>
+              <select id="beadMmDiameterSelect" class="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-xs text-white focus:outline-none">
+                <option value="2.6">2.6 mm (Mini 迷你小豆)</option>
+                <option value="5.0" selected>5.0 mm (Midi 标准大豆)</option>
+                <option value="10.0">10.0 mm (Maxi 特大安全豆)</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2 pt-1">
+              <span class="text-[11px] text-slate-300 shrink-0">目标尺寸(cm)</span>
+              <input id="targetWidthCmInput" type="number" step="0.5" min="3" max="130" value="26.0"
+                class="w-16 bg-slate-800 border border-slate-600 rounded-lg px-1.5 py-1 text-xs text-center mono-font text-white" />
+              <span class="text-slate-500 text-xs">×</span>
+              <input id="targetHeightCmInput" type="number" step="0.5" min="3" max="130" value="26.0"
+                class="w-16 bg-slate-800 border border-slate-600 rounded-lg px-1.5 py-1 text-xs text-center mono-font text-white" />
+              <button id="applyCmSizeBtn" type="button"
+                class="ml-auto px-2.5 py-1 rounded-lg bg-rose-500 hover:bg-rose-400 text-white text-xs font-semibold transition">
+                换算生成
+              </button>
+            </div>
+            <div class="text-[10px] text-slate-400">
+              自动按豆子直径换算整体图版格数，方便定制挂件、摆件或装饰画框尺寸
+            </div>
+          </div>
+
+          <!-- Board Margin Padding & Image Fit Mode -->
+          <div class="bg-slate-900/60 border border-slate-700/60 rounded-xl p-2.5 space-y-2">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-300">图案填充与留白边距</span>
+              <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700 text-[10px]">
+                <button id="fitModeContainBtn" type="button" class="px-2 py-0.5 rounded bg-rose-500 text-white font-medium transition">
+                  等比居中
+                </button>
+                <button id="fitModeCoverBtn" type="button" class="px-2 py-0.5 rounded text-slate-400 hover:text-white transition">
+                  铺满图版
+                </button>
+              </div>
+            </div>
+            <label class="block text-[11px] text-slate-400">
+              <div class="flex justify-between mb-0.5">
+                <span>四周留白格数 (边距)</span>
+                <span id="boardPaddingValText" class="mono-font text-slate-200">0 格</span>
+              </div>
+              <input id="boardPaddingSlider" type="range" min="0" max="16" value="0" class="w-full" />
+            </label>
+          </div>
+
+          <!-- Preset Pegboard Size Grid -->
+          <div>
+            <div class="text-[11px] text-slate-400 mb-1.5">常用图版预设（点击快速切换）：</div>
+            <div id="presetSizesGrid" class="grid grid-cols-3 gap-2">
+              <!-- Populated by JS with live bead counts -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Color Quantity Slider (颜色数量) -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+              <span class="w-1.5 h-3.5 rounded bg-rose-500"></span>
+              颜色数量上限
+            </span>
+            <span id="colorLimitValueLabel" class="text-xs font-bold text-rose-400 mono-font">16 色 ◆</span>
+          </div>
+
+          <div class="bg-slate-800/50 border border-slate-700/70 rounded-xl p-3 space-y-2">
+            <input id="colorCountSlider" type="range" min="6" max="36" value="16" class="w-full" />
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <button type="button" data-colorcap="10" class="color-cap-node hover:text-white">10色</button>
+              <button type="button" data-colorcap="12" class="color-cap-node hover:text-white">12色</button>
+              <button type="button" data-colorcap="14" class="color-cap-node hover:text-white">14色</button>
+              <button type="button" data-colorcap="16" class="color-cap-node text-rose-400 font-bold">16色 ◆</button>
+              <button type="button" data-colorcap="19" class="color-cap-node hover:text-white">19色</button>
+              <button type="button" data-colorcap="24" class="color-cap-node hover:text-white">24色</button>
+              <button type="button" data-colorcap="36" class="color-cap-node hover:text-white">36色</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 5: Brand & Palette Specifications (色号规格 / 品牌色卡) -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+              <span class="w-1.5 h-3.5 rounded bg-rose-500"></span>
+              色号规格 / 品牌色卡
+            </span>
+            <label class="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
+              <input id="onlyKitColorsCheck" type="checkbox" checked class="rounded text-rose-500 focus:ring-0" />
+              <span>只用套装内的色号</span>
+            </label>
+          </div>
+
+          <!-- MARD Brand -->
+          <div class="bg-slate-800/40 border border-slate-700/60 rounded-xl p-3 space-y-2">
+            <div class="text-[11px] font-semibold text-slate-300">MARD 品牌（套系色数）</div>
+            <div id="mardCountsContainer" class="flex flex-wrap gap-1.5">
+              <!-- 24, 48, 72, 96, 120, 144, 221, 264, 291 -->
+            </div>
+          </div>
+
+          <!-- Domestic, Overseas, and Artkal Brands -->
+          <div id="otherBrandsContainer" class="space-y-2.5">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <div class="pt-2 pb-4">
+          <button id="goStep2Btn" type="button"
+            class="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-600/25 transition">
+            下一步 · 图纸编辑
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: 图纸编辑 (Pattern Editing) -->
+      <div id="stepPanel2" class="hidden flex-1 flex flex-col overflow-hidden p-4 gap-3.5">
+        <!-- Info Notice & Quick Canvas Resize in Step 2 -->
+        <div class="bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 space-y-2 shrink-0">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-amber-300 font-medium">● 图纸编辑 改完点右上角「保存」存一个版本</span>
+            <span id="savedVersionsCountBadge" class="text-[11px] text-slate-400 mono-font">已存 1 版</span>
+          </div>
+          <div class="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-700/70 text-[11px]">
+            <span class="text-slate-300 shrink-0">画布尺寸:</span>
+            <input id="step2QuickWInput" type="number" min="10" max="260" value="52"
+              class="w-14 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-center mono-font text-white" />
+            <span class="text-slate-500">×</span>
+            <input id="step2QuickHInput" type="number" min="10" max="260" value="52"
+              class="w-14 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-center mono-font text-white" />
+            <button id="step2ExpandKeepBtn" type="button"
+              class="ml-auto px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/35 border border-rose-500/40 text-rose-300 font-semibold transition">
+              扩缩图版(保留手绘)
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Color Preview & Drawing Tools -->
+        <div class="bg-slate-800/50 border border-slate-700/70 rounded-xl p-3 space-y-2.5 shrink-0">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div id="activeBrushSwatch" class="w-7 h-7 rounded-lg border-2 border-white shadow flex items-center justify-center text-[10px] font-bold mono-font" style="background:#1a1a1a;color:#fff;">
+                H7
+              </div>
+              <div>
+                <div id="activeBrushTitle" class="text-xs font-bold text-white">H7 · 纯黑</div>
+                <div id="activeBrushHex" class="text-[10px] text-slate-400 mono-font">#1B1C20</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <button id="undoEditBtn" type="button"
+                class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 disabled:opacity-40 transition"
+                title="撤销上一步">
+                撤销
+              </button>
+              <button id="redoEditBtn" type="button"
+                class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 disabled:opacity-40 transition"
+                title="重做">
+                重做
+              </button>
+            </div>
+          </div>
+
+          <!-- 5 Editing Tools: 画笔 / 填充 / 橡皮 / 取色 / 套索 -->
+          <div class="grid grid-cols-5 gap-1.5">
+            <button type="button" data-edittool="brush" class="edit-tool-btn tool-btn-active py-2 rounded-lg border border-slate-700 bg-slate-800 text-xs font-medium flex flex-col items-center gap-1 transition">
+              <span>🖌️</span>
+              <span>画笔</span>
+            </button>
+            <button type="button" data-edittool="fill" class="edit-tool-btn py-2 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 text-xs font-medium flex flex-col items-center gap-1 transition">
+              <span>🪣</span>
+              <span>填充</span>
+            </button>
+            <button type="button" data-edittool="eraser" class="edit-tool-btn py-2 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 text-xs font-medium flex flex-col items-center gap-1 transition">
+              <span>🧹</span>
+              <span>橡皮</span>
+            </button>
+            <button type="button" data-edittool="picker" class="edit-tool-btn py-2 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 text-xs font-medium flex flex-col items-center gap-1 transition">
+              <span>💧</span>
+              <span>取色</span>
+            </button>
+            <button type="button" data-edittool="lasso" class="edit-tool-btn py-2 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 text-xs font-medium flex flex-col items-center gap-1 transition">
+              <span>⬚</span>
+              <span>套索</span>
+            </button>
+          </div>
+          <div class="text-[11px] text-slate-400 text-center">
+            左键绘制 · 按住 Alt 或右键拖拽平移画布 · 滚轮缩放
+          </div>
+        </div>
+
+        <!-- Palette Switcher Tabs: 在用颜色列表 / 全部色号 -->
+        <div class="flex-1 flex flex-col overflow-hidden bg-slate-800/40 border border-slate-700/60 rounded-xl">
+          <div class="grid grid-cols-2 border-b border-slate-700/70 p-1 bg-slate-900/50 shrink-0">
+            <button id="paletteTabUsed" type="button" class="py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white shadow">
+              在用颜色列表
+            </button>
+            <button id="paletteTabAll" type="button" class="py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white">
+              全部色号
+            </button>
+          </div>
+
+          <!-- Search Input (Shown in All Colors Tab) -->
+          <div id="allColorsSearchWrap" class="hidden p-2.5 border-b border-slate-700/60 shrink-0">
+            <input id="paletteSearchInput" type="text" placeholder="搜索色号 / 颜色名称 / HEX (如 H7, 柠檬黄)..."
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:border-rose-500 focus:outline-none" />
+          </div>
+
+          <!-- Scrollable Palette List -->
+          <div id="paletteListContainer" class="flex-1 overflow-y-auto p-2.5 space-y-1.5">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <button id="goStep3Btn" type="button"
+          class="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-600/25 shrink-0 transition">
+          完成编辑，开始拼豆
+        </button>
+      </div>
+
+      <!-- STEP 3: 辅助拼豆 (Assist Fuse Beading Checklist & Color Highlighter) -->
+      <div id="stepPanel3" class="hidden flex-1 flex flex-col overflow-hidden p-4 gap-3.5">
+
+        <!-- Progress Card & Sort Mode -->
+        <div class="bg-slate-800/60 border border-slate-700/80 rounded-xl p-3.5 space-y-2.5 shrink-0">
+          <div class="flex items-center justify-between">
+            <div class="flex bg-slate-900 p-0.5 rounded-lg border border-slate-700 text-xs">
+              <button id="sortUsageBtn" type="button" class="px-2.5 py-1 rounded bg-rose-500 text-white font-medium transition">
+                按用量
+              </button>
+              <button id="sortCodeBtn" type="button" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">
+                按色号
+              </button>
+            </div>
+            <button id="resetProgressBtn" type="button"
+              class="text-xs text-slate-400 hover:text-rose-400 underline transition">
+              清空记录
+            </button>
+          </div>
+
+          <!-- Progress Text & Bar -->
+          <div>
+            <div class="flex items-center justify-between text-xs font-semibold mb-1.5">
+              <span id="beadingProgressText" class="text-slate-100">0% 已拼 0 / 800 颗 · 打卡 0 / 16 色</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-700/60">
+              <div id="beadingProgressBar" class="h-full bg-gradient-to-r from-rose-500 to-emerald-400 transition-all duration-300" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- Instructions -->
+          <div class="text-[11px] text-slate-400 space-y-0.5 bg-slate-900/60 rounded-lg p-2 border border-slate-800">
+            <div>1. 点击颜色后，图纸上会高亮这个颜色，方便对照下豆</div>
+            <div>2. 下豆完成后，可点击右方框打勾，更新当前拼豆进度</div>
+          </div>
+        </div>
+
+        <!-- Select All & Filter Header -->
+        <div class="flex items-center justify-between px-1 text-xs shrink-0">
+          <label class="flex items-center gap-2 cursor-pointer text-slate-200 font-medium">
+            <input id="checkAllColorsBox" type="checkbox" class="rounded text-rose-500 focus:ring-0" />
+            <span>全选所有色号</span>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer text-slate-400 text-[11px]">
+            <input id="dimCheckedOnCanvasBox" type="checkbox" checked class="rounded text-rose-500 focus:ring-0" />
+            <span>图纸弱化已打卡豆子</span>
+          </label>
+        </div>
+
+        <!-- Checklist Items -->
+        <div id="assistChecklistContainer" class="flex-1 overflow-y-auto space-y-1.5 pr-1">
+          <!-- Populated dynamically -->
+        </div>
+
+        <button id="step3ExportBtn" type="button"
+          class="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-600/25 shrink-0 transition">
+          导出图纸
+        </button>
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- Export High-Resolution Pattern Sheet Modal -->
+  <div id="exportModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-bold text-white">导出高清拼豆工程图纸</h3>
+          <p class="text-xs text-slate-400">带色号与用量的高清图纸，可存相册或发给朋友</p>
+        </div>
+        <button id="closeExportModalBtn" type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+          ✕
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-4 bg-slate-950 flex flex-col items-center justify-center">
+        <canvas id="exportSheetCanvas" class="max-w-full h-auto rounded-lg shadow-lg border border-slate-800"></canvas>
+      </div>
+
+      <div class="px-5 py-3.5 border-t border-slate-800 bg-slate-900 flex flex-wrap items-center justify-between gap-2">
+        <div class="text-xs text-slate-400">
+          包含：网格坐标尺 + 每格色号标注 + 品牌与色彩风格说明 + 色号用量统计表
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="downloadCsvBtn" type="button"
+            class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition">
+            下载色号清单 (CSV)
+          </button>
+          <button id="downloadPngBtn" type="button"
+            class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white shadow-lg shadow-rose-600/30 transition">
+            保存高清图纸 (PNG)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastBanner" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-800/95 border border-slate-600 text-white px-4 py-2 rounded-xl shadow-2xl text-xs font-medium z-50">
+    已更新拼豆方案
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. REAL PERLER / MARD / ARTKAL BEAD COLOR PALETTE DATABASE
+    // =========================================================================
+    const BASE_BEAD_PALETTE = [
+      // A Series - Yellows & Oranges
+      { code: 'A1', name: '奶白黄', hex: '#FFF7D6', tier: 24 },
+      { code: 'A2', name: '浅鹅黄', hex: '#FFEE99', tier: 24 },
+      { code: 'A3', name: '柠檬黄', hex: '#FFE047', tier: 24 },
+      { code: 'A4', name: '明黄', hex: '#FACC15', tier: 24 },
+      { code: 'A5', name: '向日葵黄', hex: '#EAB308', tier: 48 },
+      { code: 'A6', name: '琥珀黄', hex: '#F59E0B', tier: 24 },
+      { code: 'A7', name: '蜜橘色', hex: '#FB923C', tier: 48 },
+      { code: 'A8', name: '鲜橙色', hex: '#F97316', tier: 24 },
+      { code: 'A9', name: '深橘红', hex: '#EA580C', tier: 72 },
+      { code: 'A10', name: '落日金', hex: '#D97706', tier: 96 },
+      { code: 'A11', name: '杏仁奶油', hex: '#FDE68A', tier: 120 },
+      { code: 'A12', name: '流沙金', hex: '#B45309', tier: 144 },
+
+      // B Series - Greens & Teals
+      { code: 'B1', name: '薄荷冰绿', hex: '#D1FAE5', tier: 48 },
+      { code: 'B2', name: '浅苹果绿', hex: '#86EFAC', tier: 24 },
+      { code: 'B3', name: '嫩芽绿', hex: '#4ADE80', tier: 24 },
+      { code: 'B4', name: '翠绿', hex: '#22C55E', tier: 24 },
+      { code: 'B5', name: '森林绿', hex: '#15803D', tier: 24 },
+      { code: 'B6', name: '深松绿', hex: '#14532D', tier: 72 },
+      { code: 'B7', name: '青柠绿', hex: '#A3E635', tier: 48 },
+      { code: 'B8', name: '橄榄绿', hex: '#65A30D', tier: 96 },
+      { code: 'B9', name: '抹茶绿', hex: '#4D7C0F', tier: 120 },
+      { code: 'B10', name: '冰晶青', hex: '#99F6E4', tier: 48 },
+      { code: 'B12', name: '松石绿', hex: '#2DD4BF', tier: 24 },
+      { code: 'B15', name: '翡翠青', hex: '#0D9488', tier: 72 },
+      { code: 'B17', name: '深海青绿', hex: '#0F766E', tier: 24 },
+      { code: 'B19', name: '琉璃青', hex: '#06B6D4', tier: 48 },
+
+      // C Series - Blues
+      { code: 'C1', name: '冰雪蓝', hex: '#E0F2FE', tier: 48 },
+      { code: 'C2', name: '浅天蓝', hex: '#7DD3FC', tier: 24 },
+      { code: 'C3', name: '晴空蓝', hex: '#38BDF8', tier: 24 },
+      { code: 'C4', name: '蔚蓝', hex: '#0284C7', tier: 48 },
+      { code: 'C5', name: '宝石蓝', hex: '#2563EB', tier: 24 },
+      { code: 'C6', name: '皇家深蓝', hex: '#1D4ED8', tier: 48 },
+      { code: 'C7', name: '午夜蓝', hex: '#1E3A8A', tier: 24 },
+      { code: 'C8', name: '雾霾蓝', hex: '#64748B', tier: 72 },
+      { code: 'C9', name: '孔雀蓝', hex: '#0E7490', tier: 96 },
+      { code: 'C11', name: '星夜靛蓝', hex: '#312E81', tier: 120 },
+      { code: 'C13', name: '矢车菊蓝', hex: '#60A5FA', tier: 144 },
+
+      // D Series - Purples & Violets
+      { code: 'D1', name: '浅丁香紫', hex: '#F3E8FF', tier: 72 },
+      { code: 'D2', name: '薰衣草紫', hex: '#D8B4FE', tier: 24 },
+      { code: 'D3', name: '罗兰紫', hex: '#A855F7', tier: 24 },
+      { code: 'D4', name: '葡萄紫', hex: '#7E22CE', tier: 48 },
+      { code: 'D5', name: '暗夜深紫', hex: '#4C1D95', tier: 72 },
+      { code: 'D6', name: '香芋紫', hex: '#C084FC', tier: 96 },
+      { code: 'D8', name: '梅子紫', hex: '#6B21A8', tier: 144 },
+
+      // E Series - Pinks & Magentas
+      { code: 'E1', name: '樱花粉', hex: '#FCE7F3', tier: 24 },
+      { code: 'E2', name: '蜜桃粉', hex: '#F9A8D4', tier: 24 },
+      { code: 'E3', name: '芭比粉', hex: '#F472B6', tier: 24 },
+      { code: 'E4', name: '玫瑰粉红', hex: '#EC4899', tier: 48 },
+      { code: 'E5', name: '火龙果色', hex: '#DB2777', tier: 72 },
+      { code: 'E6', name: '珊瑚粉', hex: '#FDA4AF', tier: 48 },
+      { code: 'E8', name: '胭脂红', hex: '#BE185D', tier: 96 },
+
+      // F Series - Reds & Scarlets
+      { code: 'F1', name: '浅西瓜红', hex: '#FCA5A5', tier: 48 },
+      { code: 'F2', name: '正红', hex: '#EF4444', tier: 24 },
+      { code: 'F3', name: '樱桃红', hex: '#DC2626', tier: 24 },
+      { code: 'F4', name: '酒红', hex: '#991B1B', tier: 48 },
+      { code: 'F5', name: '暗血红', hex: '#7F1D1D', tier: 72 },
+      { code: 'F7', name: '朱砂红', hex: '#E11D48', tier: 120 },
+
+      // G Series - Browns, Tans, Skin & Golds
+      { code: 'G1', name: '象牙肤色', hex: '#FFEDD5', tier: 24 },
+      { code: 'G2', name: '暖杏肤色', hex: '#FED7AA', tier: 24 },
+      { code: 'G3', name: '浅驼色', hex: '#FDBA74', tier: 48 },
+      { code: 'G4', name: '焦糖棕', hex: '#D97706', tier: 48 },
+      { code: 'G5', name: '牛奶巧克', hex: '#92400E', tier: 24 },
+      { code: 'G6', name: '深咖啡棕', hex: '#78350F', tier: 24 },
+      { code: 'G7', name: '黑巧棕', hex: '#451A03', tier: 48 },
+      { code: 'G8', name: '沙金棕', hex: '#CA8A04', tier: 72 },
+      { code: 'G9', name: '古铜金', hex: '#A16207', tier: 72 },
+      { code: 'G11', name: '燕麦米色', hex: '#F5F5DC', tier: 96 },
+      { code: 'G14', name: '红木棕', hex: '#7C2D12', tier: 120 },
+
+      // H Series - Neutrals, Whites, Grays, Blacks
+      { code: 'H1', name: '纯白', hex: '#FFFFFF', tier: 24 },
+      { code: 'H2', name: '珍珠白', hex: '#F1F5F9', tier: 48 },
+      { code: 'H3', name: '浅银灰', hex: '#CBD5E1', tier: 24 },
+      { code: 'H4', name: '中灰', hex: '#94A3B8', tier: 24 },
+      { code: 'H5', name: '暗岩灰', hex: '#64748B', tier: 48 },
+      { code: 'H6', name: '炭黑灰', hex: '#334155', tier: 24 },
+      { code: 'H7', name: '纯黑', hex: '#141619', tier: 24 },
+      { code: 'H8', name: '暖灰紫', hex: '#A1A1AA', tier: 96 },
+      { code: 'H9', name: '玄铁黑', hex: '#1E293B', tier: 120 }
+    ];
+
+    // Precompute RGB and CIELAB for accurate perceptual color matching
+    function hexToRgb(hex) {
+      const clean = hex.replace('#', '');
+      const num = parseInt(clean, 16);
+      return {
+        r: (num >> 16) & 255,
+        g: (num >> 8) & 255,
+        b: num & 255
+      };
+    }
+
+    function rgbToLab(r, g, b) {
+      let rn = r / 255, gn = g / 255, bn = b / 255;
+      rn = rn > 0.04045 ? Math.pow((rn + 0.055) / 1.055, 2.4) : rn / 12.92;
+      gn = gn > 0.04045 ? Math.pow((gn + 0.055) / 1.055, 2.4) : gn / 12.92;
+      bn = bn > 0.04045 ? Math.pow((bn + 0.055) / 1.055, 2.4) : bn / 12.92;
+
+      let x = (rn * 0.4124 + gn * 0.3576 + bn * 0.1805) / 0.95047;
+      let y = (rn * 0.2126 + gn * 0.7152 + bn * 0.0722) / 1.00000;
+      let z = (rn * 0.0193 + gn * 0.1192 + bn * 0.9505) / 1.08883;
+
+      x = x > 0.008856 ? Math.cbrt(x) : (7.787 * x) + 16 / 116;
+      y = y > 0.008856 ? Math.cbrt(y) : (7.787 * y) + 16 / 116;
+      z = z > 0.008856 ? Math.cbrt(z) : (7.787 * z) + 16 / 116;
+
+      return {
+        L: (116 * y) - 16,
+        a: 500 * (x - y),
+        b: 200 * (y - z)
+      };
+    }
+
+    BASE_BEAD_PALETTE.forEach(item => {
+      item.rgb = hexToRgb(item.hex);
+      item.lab = rgbToLab(item.rgb.r, item.rgb.g, item.rgb.b);
+    });
+
+    // =========================================================================
+    // 2. COLOR STYLES (色彩风格配置 - 8 Distinctive Artistic Color Styles)
+    // =========================================================================
+    const COLOR_STYLES = [
+      {
+        id: 'natural',
+        name: '原色还原',
+        desc: 'CIELAB 精准色差还原',
+        swatches: ['#FACC15', '#2DD4BF', '#EF4444', '#141619']
+      },
+      {
+        id: 'pastel',
+        name: '马卡龙粉彩',
+        desc: '柔和甜美低饱和高明度',
+        swatches: ['#FCE7F3', '#FFEE99', '#D1FAE5', '#D8B4FE']
+      },
+      {
+        id: 'retro8bit',
+        name: '复古像素',
+        desc: '经典红白机暖调高对比',
+        swatches: ['#EA580C', '#FACC15', '#15803D', '#1E3A8A']
+      },
+      {
+        id: 'cyber',
+        name: '赛博霓虹',
+        desc: '冷暖电光荧光高饱和',
+        swatches: ['#EC4899', '#06B6D4', '#A855F7', '#FFE047']
+      },
+      {
+        id: 'morandi',
+        name: '莫兰迪森系',
+        desc: '高级温柔灰调与大地色',
+        swatches: ['#94A3B8', '#A16207', '#4D7C0F', '#CBD5E1']
+      },
+      {
+        id: 'pop',
+        name: '高饱和波普',
+        desc: '波普艺术鲜明色块强化',
+        swatches: ['#EF4444', '#FFE047', '#2563EB', '#22C55E']
+      },
+      {
+        id: 'golden',
+        name: '暖阳鎏金',
+        desc: '琥珀流光暖金氛围感',
+        swatches: ['#F59E0B', '#FDE68A', '#92400E', '#451A03']
+      },
+      {
+        id: 'mono',
+        name: '黑白漫画',
+        desc: '纯粹黑白灰阶像素风',
+        swatches: ['#FFFFFF', '#CBD5E1', '#64748B', '#141619']
+      }
+    ];
+
+    // =========================================================================
+    // 3. BRAND PALETTE SPECIFICATIONS (MARD / 国产 / 海外 / Artkal)
+    // =========================================================================
+    const MARD_COUNTS = [24, 48, 72, 96, 120, 144, 221, 264, 291];
+
+    const BRAND_GROUPS = [
+      {
+        category: '国产品牌',
+        items: [
+          { id: 'coco', name: 'COCO', sub: '与 MARD 同色 · 291 色', prefix: '' },
+          { id: 'manman', name: '漫漫', sub: '与 MARD 同色 · 291 色', prefix: '' },
+          { id: 'panpan', name: '盼盼', sub: '与 MARD 同色 · 291 色', prefix: '' },
+          { id: 'mixiaowo', name: '咪小窝', sub: '与 MARD 同色 · 291 色', prefix: '' }
+        ]
+      },
+      {
+        category: '海外品牌',
+        items: [
+          { id: 'perler', name: 'Perler', sub: '标准 5mm · 103 色', prefix: 'P' },
+          { id: 'perler_mini', name: 'Perler Mini', sub: '2.5mm · 41 色', prefix: 'PM' },
+          { id: 'hama_midi', name: 'Hama Midi', sub: '5mm · 92 色', prefix: 'HM' },
+          { id: 'hama_mini', name: 'Hama Mini', sub: '2.5mm · 78 色', prefix: 'HN' },
+          { id: 'hama_maxi', name: 'Hama Maxi', sub: '10mm · 25 色', prefix: 'HX' },
+          { id: 'nabbi', name: 'Nabbi', sub: '5mm · 30 色', prefix: 'NB' },
+          { id: 'yant', name: 'Yant', sub: '5mm · 119 色', prefix: 'YT' }
+        ]
+      },
+      {
+        category: 'Artkal 品牌',
+        items: [
+          { id: 'artkal_s', name: 'Artkal S', sub: '5mm 软豆 · 199 色', prefix: 'S' },
+          { id: 'artkal_r', name: 'Artkal R', sub: '5mm 硬豆 · 89 色', prefix: 'R' },
+          { id: 'artkal_c', name: 'Artkal C', sub: '2.6mm · 174 色', prefix: 'C' },
+          { id: 'artkal_a', name: 'Artkal A', sub: '2.6mm · 145 色', prefix: 'A' },
+          { id: 'artkal_m', name: 'Artkal M', sub: '2.6mm · 220 色', prefix: 'M' }
+        ]
+      }
+    ];
+
+    const PRESET_BOARD_SIZES = [
+      { w: 29, h: 29, label: '29×29', desc: '标准单板', rec: false },
+      { w: 36, h: 36, label: '36×36', desc: '大号单板', rec: false },
+      { w: 52, h: 52, label: '52×52', desc: '特大整板', rec: false },
+      { w: 58, h: 58, label: '58×58', desc: '2×2标准拼板', rec: false },
+      { w: 78, h: 78, label: '78×78', desc: '3×3中型拼板', rec: false },
+      { w: 104, h: 104, label: '104×104', desc: '2×2特大拼板', rec: true },
+      { w: 156, h: 156, label: '156×156', desc: '3×3特大拼板', rec: false },
+      { w: 52, h: 78, label: '52×78', desc: '竖版海报2:3', rec: false },
+      { w: 78, h: 52, label: '78×52', desc: '横版画幅3:2', rec: false }
+    ];
+
+    // =========================================================================
+    // 4. APPLICATION STATE
+    // =========================================================================
+    const state = {
+      step: 1,                  // 1: 规格调整, 2: 图纸编辑, 3: 辅助拼豆
+      viewMode: 'pattern',      // 'original' | 'converted' | 'pattern'
+      perspective: '2d',        // '2d' | '3d'
+      tilt3D: 38,
+      rotate3D: -14,
+      layout: 'right',          // 'left' | 'bottom' | 'right'
+
+      // Image source
+      sourceImage: null,
+      activePresetId: 'warhammer',
+      removeBg: true,
+
+      // Color style & adjustments
+      colorStyle: 'natural',
+      dithering: false,
+      brightness: 0,
+      contrast: 0,
+
+      // Overall Board Size & Custom Specs
+      sizeCustomMode: 'grid',   // 'grid' | 'tile' | 'cm'
+      gridWidth: 52,
+      gridHeight: 52,
+      lockAspect: false,
+      aspectRatio: 1.0,
+      boardPadding: 0,          // 0 - 16 cells padding around pattern
+      imageFitMode: 'contain',  // 'contain' | 'cover'
+      beadDiameterMm: 5.0,      // 2.6mm | 5.0mm | 10.0mm
+      tileUnitW: 52,
+      tileUnitH: 52,
+      tileCountX: 1,
+      tileCountY: 1,
+      showTileSplitLines: true,
+      maxColors: 16,
+      mardTier: 221,
+      activeBrandId: 'mard',
+      onlyKitColors: true,
+
+      // Canvas options
+      mirrored: false,
+      ironedSim: false,
+      showColorCodes: true,
+      zoom: 1.0,
+      panX: 0,
+      panY: 0,
+
+      // Pattern Grid Data: 2D array [y][x] storing bead color object or null (empty)
+      grid: [],
+      usedColorsSummary: [],    // [{ bead, count }]
+      totalBeadsCount: 0,
+
+      // Step 2 Editing
+      activeTool: 'brush',      // 'brush' | 'fill' | 'eraser' | 'picker' | 'lasso'
+      selectedBeadColor: BASE_BEAD_PALETTE.find(c => c.code === 'H7') || BASE_BEAD_PALETTE[0],
+      paletteTab: 'used',       // 'used' | 'all'
+      paletteSearch: '',
+      undoStack: [],
+      redoStack: [],
+      savedSnapshots: 1,
+      lassoRect: null,
+
+      // Step 3 Assist Beading
+      assistSort: 'usage',      // 'usage' | 'code'
+      checkedColorCodes: new Set(),
+      highlightedColorCode: null,
+      dimCheckedOnCanvas: true
+    };
+
+    // =========================================================================
+    // 5. PROCEDURAL PRESET ARTWORKS (for instant switching + default Warhammer)
+    // =========================================================================
+    function createProceduralPresetImage(type) {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, 256, 256);
+
+      if (type === 'potion') {
+        // Starlight Magic Potion Bottle
+        ctx.save();
+        ctx.translate(128, 136);
+        // Outer bottle glow
+        const grad = ctx.createRadialGradient(0, 10, 10, 0, 10, 95);
+        grad.addColorStop(0, '#A855F7');
+        grad.addColorStop(0.6, '#3B82F6');
+        grad.addColorStop(1, '#1E1B4B');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 18, 72, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 8;
+        ctx.strokeStyle = '#141619';
+        ctx.stroke();
+
+        // Liquid wave
+        ctx.fillStyle = '#EC4899';
+        ctx.beginPath();
+        ctx.arc(0, 18, 60, 0.15 * Math.PI, 0.85 * Math.PI);
+        ctx.fill();
+
+        // Golden Moon & Stars inside bottle
+        ctx.fillStyle = '#FFE047';
+        ctx.beginPath();
+        ctx.arc(-14, 15, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#3B82F6';
+        ctx.beginPath();
+        ctx.arc(-4, 10, 18, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bottle neck
+        ctx.fillStyle = '#7DD3FC';
+        ctx.strokeStyle = '#141619';
+        ctx.lineWidth = 7;
+        ctx.fillRect(-22, -78, 44, 34);
+        ctx.strokeRect(-22, -78, 44, 34);
+
+        // Cork
+        ctx.fillStyle = '#D97706';
+        ctx.fillRect(-18, -104, 36, 26);
+        ctx.strokeRect(-18, -104, 36, 26);
+
+        // Golden collar
+        ctx.fillStyle = '#FACC15';
+        ctx.fillRect(-28, -52, 56, 14);
+        ctx.strokeRect(-28, -52, 56, 14);
+        ctx.restore();
+      } else if (type === 'shiba') {
+        // Cyber Neon Shiba Inu
+        ctx.save();
+        ctx.translate(128, 134);
+        // Ears
+        ctx.fillStyle = '#F97316';
+        ctx.strokeStyle = '#141619';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(-68, -25);
+        ctx.lineTo(-82, -95);
+        ctx.lineTo(-22, -65);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(68, -25);
+        ctx.lineTo(82, -95);
+        ctx.lineTo(22, -65);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Head
+        ctx.fillStyle = '#FB923C';
+        ctx.beginPath();
+        ctx.arc(0, 0, 78, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // White cheeks & muzzle
+        ctx.fillStyle = '#FFF7D6';
+        ctx.beginPath();
+        ctx.arc(-34, 24, 34, 0, Math.PI * 2);
+        ctx.arc(34, 24, 34, 0, Math.PI * 2);
+        ctx.arc(0, 32, 36, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cyber Neon Visor Glasses
+        ctx.fillStyle = '#06B6D4';
+        ctx.fillRect(-66, -24, 132, 28);
+        ctx.strokeStyle = '#EC4899';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(-66, -24, 132, 28);
+
+        // Nose & mouth
+        ctx.fillStyle = '#141619';
+        ctx.beginPath();
+        ctx.arc(0, 18, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      } else if (type === 'catcake') {
+        // Strawberry Sweetheart Cat Cake
+        ctx.save();
+        ctx.translate(128, 140);
+        // Cake base
+        ctx.fillStyle = '#FCE7F3';
+        ctx.strokeStyle = '#141619';
+        ctx.lineWidth = 8;
+        ctx.fillRect(-74, -20, 148, 86);
+        ctx.strokeRect(-74, -20, 148, 86);
+
+        // Pink frosting waves
+        ctx.fillStyle = '#F472B6';
+        ctx.fillRect(-74, -20, 148, 28);
+        ctx.strokeRect(-74, -20, 148, 28);
+
+        // Cute White Cat Head on top
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(0, -45, 42, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Strawberry on top
+        ctx.fillStyle = '#EF4444';
+        ctx.beginPath();
+        ctx.arc(0, -95, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Eyes & blush
+        ctx.fillStyle = '#141619';
+        ctx.beginPath();
+        ctx.arc(-16, -46, 5, 0, Math.PI * 2);
+        ctx.arc(16, -46, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#FB7185';
+        ctx.beginPath();
+        ctx.arc(-26, -38, 7, 0, Math.PI * 2);
+        ctx.arc(26, -38, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      return c;
+    }
+
+    // =========================================================================
+    // 6. COLOR STYLE TRANSFORMATION & IMAGE-TO-BEAD QUANTIZATION ENGINE
+    // =========================================================================
+    function applyColorStyleToRGB(r, g, b, styleId, brightnessOffset, contrastOffset) {
+      // 1. Apply brightness & contrast
+      let rf = r + brightnessOffset * 2.2;
+      let gf = g + brightnessOffset * 2.2;
+      let bf = b + brightnessOffset * 2.2;
+
+      const factor = (259 * (contrastOffset + 255)) / (255 * (259 - contrastOffset));
+      rf = factor * (rf - 128) + 128;
+      gf = factor * (gf - 128) + 128;
+      bf = factor * (bf - 128) + 128;
+
+      rf = Math.max(0, Math.min(255, rf));
+      gf = Math.max(0, Math.min(255, gf));
+      bf = Math.max(0, Math.min(255, bf));
+
+      // Convert to HSL for style transformations
+      let rn = rf / 255, gn = gf / 255, bn = bf / 255;
+      const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+      let h = 0, s = 0, l = (max + min) / 2;
+
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case rn: h = (gn - bn) / d + (gn < bn ? 6 : 0); break;
+          case gn: h = (bn - rn) / d + 2; break;
+          case bn: h = (rn - gn) / d + 4; break;
+        }
+        h /= 6;
+      }
+
+      if (styleId === 'pastel') {
+        // Macaron Pastel: lift lightness, soften saturation
+        l = Math.min(0.92, l * 0.65 + 0.30);
+        s = Math.min(0.75, s * 0.78 + 0.12);
+      } else if (styleId === 'retro8bit') {
+        // Retro 8-bit: warm hue shift, quantized lightness steps, strong saturation
+        l = Math.round(l * 5) / 5;
+        s = Math.min(1, s * 1.25);
+      } else if (styleId === 'cyber') {
+        // Cyber Neon: push hues toward magenta/cyan/electric yellow & boost saturation
+        s = Math.min(1, s * 1.45 + 0.15);
+        l = l < 0.5 ? l * 0.85 : Math.min(0.95, l * 1.12);
+        if (h > 0.25 && h < 0.45) h = 0.50; // shift greens toward neon cyan
+        if (h > 0.75 || h < 0.08) h = 0.88; // shift reds toward neon magenta
+      } else if (styleId === 'morandi') {
+        // Morandi Earth: desaturated muted gray-tones, gentle contrast
+        s = s * 0.52;
+        l = l * 0.82 + 0.10;
+      } else if (styleId === 'pop') {
+        // Pop Vivid: high saturation + posterized contrast
+        s = Math.min(1, s * 1.5);
+        l = l > 0.5 ? Math.min(0.92, l * 1.1) : l * 0.85;
+      } else if (styleId === 'golden') {
+        // Warm Golden Dawn: shift toward amber/gold warmth
+        s = Math.min(1, s * 1.2);
+      } else if (styleId === 'mono') {
+        // Manga Monochrome: pure grayscale
+        const gray = Math.round(0.299 * rf + 0.587 * gf + 0.114 * bf);
+        return { r: gray, g: gray, b: gray };
+      }
+
+      // Convert HSL back to RGB
+      function hue2rgb(p, q, t) {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      }
+
+      let rOut, gOut, bOut;
+      if (s === 0) {
+        rOut = gOut = bOut = l;
+      } else {
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        rOut = hue2rgb(p, q, h + 1 / 3);
+        gOut = hue2rgb(p, q, h);
+        bOut = hue2rgb(p, q, h - 1 / 3);
+      }
+
+      let finalR = Math.round(rOut * 255);
+      let finalG = Math.round(gOut * 255);
+      let finalB = Math.round(bOut * 255);
+
+      if (styleId === 'golden') {
+        finalR = Math.min(255, Math.round(finalR * 1.12 + 12));
+        finalG = Math.min(255, Math.round(finalG * 1.02 + 4));
+        finalB = Math.max(0, Math.round(finalB * 0.82));
+      }
+
+      return { r: finalR, g: finalG, b: finalB };
+    }
+
+    function getActiveCandidatePalette() {
+      let pool = BASE_BEAD_PALETTE;
+      if (state.onlyKitColors) {
+        pool = BASE_BEAD_PALETTE.filter(c => c.tier <= state.mardTier);
+      }
+      if (state.colorStyle === 'mono') {
+        const monoPool = pool.filter(c => c.code.startsWith('H'));
+        if (monoPool.length >= 4) return monoPool;
+      }
+      return pool.length > 0 ? pool : BASE_BEAD_PALETTE;
+    }
+
+    function findNearestBead(r, g, b, palette) {
+      const lab = rgbToLab(r, g, b);
+      let best = palette[0];
+      let bestDist = Infinity;
+      for (let i = 0; i < palette.length; i++) {
+        const item = palette[i];
+        const dL = lab.L - item.lab.L;
+        const da = lab.a - item.lab.a;
+        const db = lab.b - item.lab.b;
+        const dist = dL * dL * 1.1 + da * da + db * db;
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = item;
+        }
+      }
+      return best;
+    }
+
+    function getDisplayCode(bead) {
+      if (!bead) return '';
+      if (state.activeBrandId === 'mard' || ['coco', 'manman', 'panpan', 'mixiaowo'].includes(state.activeBrandId)) {
+        return bead.code;
+      }
+      for (const group of BRAND_GROUPS) {
+        const found = group.items.find(it => it.id === state.activeBrandId);
+        if (found && found.prefix) {
+          return found.prefix + bead.code.replace(/^[A-Z]+/, '');
+        }
+      }
+      return bead.code;
+    }
+
+    // Generate the complete Perler bead pattern from state.sourceImage
+    function generateBeadPatternFromImage() {
+      if (!state.sourceImage) return;
+
+      const W = state.gridWidth;
+      const H = state.gridHeight;
+      const off = document.createElement('canvas');
+      off.width = W;
+      off.height = H;
+      const ctx = off.getContext('2d');
+
+      // Fit image inside W x H with customizable boardPadding & contain/cover mode
+      ctx.clearRect(0, 0, W, H);
+      const pad = Math.min(Math.floor(Math.min(W, H) / 2) - 2, Math.max(0, state.boardPadding || 0));
+      const availW = Math.max(4, W - pad * 2);
+      const availH = Math.max(4, H - pad * 2);
+      const imgW = state.sourceImage.width || 256;
+      const imgH = state.sourceImage.height || 256;
+      const scale = state.imageFitMode === 'cover'
+        ? Math.max(availW / imgW, availH / imgH)
+        : Math.min(availW / imgW, availH / imgH);
+      const drawW = Math.max(1, Math.round(imgW * scale));
+      const drawH = Math.max(1, Math.round(imgH * scale));
+      const offsetX = Math.floor((W - drawW) / 2);
+      const offsetY = Math.floor((H - drawH) / 2);
+
+      ctx.save();
+      if (pad > 0) {
+        ctx.beginPath();
+        ctx.rect(pad, pad, availW, availH);
+        ctx.clip();
+      }
+      ctx.drawImage(state.sourceImage, offsetX, offsetY, drawW, drawH);
+      ctx.restore();
+      const imgData = ctx.getImageData(0, 0, W, H);
+      const data = imgData.data;
+
+      // Detect corner background color for auto background removal
+      const cornerR = data[0], cornerG = data[1], cornerB = data[2], cornerA = data[3];
+
+      // Create float RGB buffer for optional Floyd-Steinberg dithering
+      const floatBuf = new Float32Array(W * H * 3);
+      const emptyMask = new Uint8Array(W * H);
+
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const idx = (y * W + x) * 4;
+          const r = data[idx], g = data[idx + 1], b = data[idx + 2], a = data[idx + 3];
+
+          if (a < 60) {
+            emptyMask[y * W + x] = 1;
+            continue;
+          }
+          if (state.removeBg) {
+            const distCorner = Math.abs(r - cornerR) + Math.abs(g - cornerG) + Math.abs(b - cornerB);
+            const isNearWhite = r > 242 && g > 242 && b > 242;
+            if ((cornerA > 200 && distCorner < 28 && (x < 3 || x >= W - 3 || y < 3 || y >= H - 3 || isNearWhite)) || (r > 248 && g > 248 && b > 248)) {
+              emptyMask[y * W + x] = 1;
+              continue;
+            }
+          }
+
+          const styled = applyColorStyleToRGB(r, g, b, state.colorStyle, state.brightness, state.contrast);
+          const p3 = (y * W + x) * 3;
+          floatBuf[p3] = styled.r;
+          floatBuf[p3 + 1] = styled.g;
+          floatBuf[p3 + 2] = styled.b;
+        }
+      }
+
+      const candidatePalette = getActiveCandidatePalette();
+
+      // Pass 1: Initial mapping to candidate palette to rank color frequencies
+      const initialCounts = new Map();
+      for (let i = 0; i < W * H; i++) {
+        if (emptyMask[i]) continue;
+        const bead = findNearestBead(
+          Math.max(0, Math.min(255, Math.round(floatBuf[i * 3]))),
+          Math.max(0, Math.min(255, Math.round(floatBuf[i * 3 + 1]))),
+          Math.max(0, Math.min(255, Math.round(floatBuf[i * 3 + 2]))),
+          candidatePalette
+        );
+        initialCounts.set(bead, (initialCounts.get(bead) || 0) + 1);
+      }
+
+      // Enforce state.maxColors cap while keeping diverse key colors
+      let sortedColors = Array.from(initialCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(entry => entry[0]);
+
+      let restrictedPalette = sortedColors.slice(0, state.maxColors);
+      if (restrictedPalette.length === 0) {
+        restrictedPalette = candidatePalette.slice(0, state.maxColors);
+      }
+
+      // Pass 2: Map each pixel to restrictedPalette (with optional Floyd-Steinberg dithering)
+      const newGrid = [];
+      for (let y = 0; y < H; y++) {
+        const row = [];
+        for (let x = 0; x < W; x++) {
+          const pos = y * W + x;
+          if (emptyMask[pos]) {
+            row.push(null);
+            continue;
+          }
+          const rOld = Math.max(0, Math.min(255, Math.round(floatBuf[pos * 3])));
+          const gOld = Math.max(0, Math.min(255, Math.round(floatBuf[pos * 3 + 1])));
+          const bOld = Math.max(0, Math.min(255, Math.round(floatBuf[pos * 3 + 2])));
+
+          const matched = findNearestBead(rOld, gOld, bOld, restrictedPalette);
+          row.push(matched);
+
+          if (state.dithering) {
+            const errR = (rOld - matched.rgb.r) * 0.65;
+            const errG = (gOld - matched.rgb.g) * 0.65;
+            const errB = (bOld - matched.rgb.b) * 0.65;
+
+            const neighbors = [
+              { dx: 1, dy: 0, w: 7 / 16 },
+              { dx: -1, dy: 1, w: 3 / 16 },
+              { dx: 0, dy: 1, w: 5 / 16 },
+              { dx: 1, dy: 1, w: 1 / 16 }
+            ];
+            for (const nb of neighbors) {
+              const nx = x + nb.dx, ny = y + nb.dy;
+              if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
+                const nPos = ny * W + nx;
+                if (!emptyMask[nPos]) {
+                  floatBuf[nPos * 3] += errR * nb.w;
+                  floatBuf[nPos * 3 + 1] += errG * nb.w;
+                  floatBuf[nPos * 3 + 2] += errB * nb.w;
+                }
+              }
+            }
+          }
+        }
+        newGrid.push(row);
+      }
+
+      state.grid = newGrid;
+      state.undoStack = [];
+      state.redoStack = [];
+      recalculatePatternStats();
+      renderAll();
+    }
+
+    // Recalculate bead counts, active colors, and Step 3 progress
+    function recalculatePatternStats() {
+      const countsMap = new Map();
+      let total = 0;
+
+      for (let y = 0; y < state.grid.length; y++) {
+        const row = state.grid[y];
+        for (let x = 0; x < row.length; x++) {
+          const cell = row[x];
+          if (cell) {
+            total++;
+            countsMap.set(cell.code, {
+              bead: cell,
+              count: (countsMap.get(cell.code)?.count || 0) + 1
+            });
+          }
+        }
+      }
+
+      state.totalBeadsCount = total;
+      state.usedColorsSummary = Array.from(countsMap.values()).sort((a, b) => b.count - a.count);
+
+      // Update top canvas status badge & physical size in cm
+      const physW = ((state.gridWidth * state.beadDiameterMm) / 10).toFixed(1);
+      const physH = ((state.gridHeight * state.beadDiameterMm) / 10).toFixed(1);
+      document.getElementById('canvasStatDimensions').textContent = `${state.gridWidth}×${state.gridHeight}`;
+      document.getElementById('canvasStatPhysicalSize').textContent = `(${physW}×${physH}cm)`;
+      document.getElementById('boardPhysicalSummaryText').textContent = `成品约 ${physW} × ${physH} cm`;
+      document.getElementById('canvasStatBeads').textContent = `共 ${total} 颗`;
+      document.getElementById('canvasStatColors').textContent = `${state.usedColorsSummary.length} 色`;
+
+      syncBoardSizeInputsUI();
+
+      // Update preset board size cards with estimated bead counts
+      renderPresetBoardSizeCards();
+      renderStep2Palette();
+      renderStep3Checklist();
+    }
+
+    // =========================================================================
+    // 7. CANVAS RENDERING (2D Pattern, Original, Converted, 3D Pegboard, Rulers)
+    // =========================================================================
+    const mainCanvas = document.getElementById('mainPatternCanvas');
+    const topRulerCanvas = document.getElementById('topRulerCanvas');
+    const leftRulerCanvas = document.getElementById('leftRulerCanvas');
+
+    function getContrastText(hex) {
+      const rgb = hexToRgb(hex);
+      const lum = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+      return lum > 0.58 ? '#0f172a' : '#f8fafc';
+    }
+
+    function getLayoutMetrics() {
+      const rect = mainCanvas.getBoundingClientRect();
+      const cw = rect.width || 600;
+      const ch = rect.height || 500;
+      const W = state.gridWidth;
+      const H = state.gridHeight;
+
+      const baseCellSize = Math.max(6, Math.min((cw - 48) / W, (ch - 48) / H));
+      const cellSize = baseCellSize * state.zoom;
+      const boardPxW = W * cellSize;
+      const boardPxH = H * cellSize;
+
+      const originX = (cw - boardPxW) / 2 + state.panX;
+      const originY = (ch - boardPxH) / 2 + state.panY;
+
+      return { cw, ch, W, H, cellSize, boardPxW, boardPxH, originX, originY };
+    }
+
+    function renderRulers(metrics) {
+      const { cw, ch, W, H, cellSize, originX, originY } = metrics;
+      const dpr = window.devicePixelRatio || 1;
+
+      // Top Ruler
+      topRulerCanvas.width = cw * dpr;
+      topRulerCanvas.height = 24 * dpr;
+      const tCtx = topRulerCanvas.getContext('2d');
+      tCtx.scale(dpr, dpr);
+      tCtx.clearRect(0, 0, cw, 24);
+      tCtx.fillStyle = '#94a3b8';
+      tCtx.font = '600 10px "JetBrains Mono", monospace';
+      tCtx.textAlign = 'center';
+      tCtx.textBaseline = 'middle';
+
+      const step = cellSize < 12 ? 5 : (cellSize < 22 ? 5 : 1);
+      for (let x = 1; x <= W; x++) {
+        const cx = originX + (x - 0.5) * cellSize;
+        if (cx < 0 || cx > cw) continue;
+        if (x === 1 || x % step === 0 || x === W) {
+          tCtx.fillText(String(x), cx, 12);
+        }
+      }
+
+      // Left Ruler
+      leftRulerCanvas.width = 28 * dpr;
+      leftRulerCanvas.height = ch * dpr;
+      const lCtx = leftRulerCanvas.getContext('2d');
+      lCtx.scale(dpr, dpr);
+      lCtx.clearRect(0, 0, 28, ch);
+      lCtx.fillStyle = '#94a3b8';
+      lCtx.font = '600 10px "JetBrains Mono", monospace';
+      lCtx.textAlign = 'center';
+      lCtx.textBaseline = 'middle';
+
+      for (let y = 1; y <= H; y++) {
+        const cy = originY + (y - 0.5) * cellSize;
+        if (cy < 0 || cy > ch) continue;
+        if (y === 1 || y % step === 0 || y === H) {
+          lCtx.fillText(String(y), 14, cy);
+        }
+      }
+    }
+
+    function renderMainCanvas() {
+      const rect = mainCanvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      mainCanvas.width = rect.width * dpr;
+      mainCanvas.height = rect.height * dpr;
+      const ctx = mainCanvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      const metrics = getLayoutMetrics();
+      const { cw, ch, W, H, cellSize, boardPxW, boardPxH, originX, originY } = metrics;
+
+      ctx.clearRect(0, 0, cw, ch);
+      renderRulers(metrics);
+
+      // 1. Original Image View Mode
+      if (state.viewMode === 'original' && state.sourceImage) {
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(originX, originY, boardPxW, boardPxH);
+        if (state.mirrored) {
+          ctx.translate(originX + boardPxW, originY);
+          ctx.scale(-1, 1);
+          ctx.drawImage(state.sourceImage, 0, 0, boardPxW, boardPxH);
+        } else {
+          ctx.drawImage(state.sourceImage, originX, originY, boardPxW, boardPxH);
+        }
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(originX, originY, boardPxW, boardPxH);
+        ctx.restore();
+        return;
+      }
+
+      // 2. 3D Perspective Pegboard Mode
+      if (state.viewMode === 'pattern' && state.perspective === '3d') {
+        render3DPegboard(ctx, metrics);
+        return;
+      }
+
+      // 3. 2D Converted Preview or Interactive Bead Pattern
+      ctx.save();
+
+      // Pegboard base background
+      ctx.fillStyle = state.viewMode === 'converted' ? '#0f172a' : '#1e293b';
+      ctx.fillRect(originX, originY, boardPxW, boardPxH);
+
+      const showCodes = state.viewMode === 'pattern' && state.showColorCodes && cellSize >= 13;
+
+      for (let y = 0; y < H; y++) {
+        const row = state.grid[y];
+        if (!row) continue;
+        for (let x = 0; x < W; x++) {
+          const drawCol = state.mirrored ? (W - 1 - x) : x;
+          const bead = row[drawCol];
+          const px = originX + x * cellSize;
+          const py = originY + y * cellSize;
+
+          if (px + cellSize < 0 || px > cw || py + cellSize < 0 || py > ch) continue;
+
+          if (!bead) {
+            // Draw empty pegboard pin dot in pattern mode
+            if (state.viewMode === 'pattern' && cellSize >= 8) {
+              ctx.fillStyle = 'rgba(148, 163, 184, 0.18)';
+              ctx.beginPath();
+              ctx.arc(px + cellSize / 2, py + cellSize / 2, Math.max(1.2, cellSize * 0.1), 0, Math.PI * 2);
+              ctx.fill();
+            }
+            continue;
+          }
+
+          // Determine if dimmed by Step 3 highlight or checked-off status
+          let alpha = 1.0;
+          let isHighlighted = false;
+          if (state.highlightedColorCode) {
+            if (bead.code === state.highlightedColorCode) {
+              isHighlighted = true;
+            } else {
+              alpha = 0.16;
+            }
+          } else if (state.step === 3 && state.dimCheckedOnCanvas && state.checkedColorCodes.has(bead.code)) {
+            alpha = 0.25;
+          }
+
+          ctx.globalAlpha = alpha;
+
+          if (state.viewMode === 'converted' || state.ironedSim) {
+            // Fused / Ironed Square-Rounded Bead Simulation
+            ctx.fillStyle = bead.hex;
+            const pad = state.ironedSim ? Math.max(0.4, cellSize * 0.03) : 0;
+            ctx.fillRect(px + pad, py + pad, cellSize - pad * 2, cellSize - pad * 2);
+
+            if (state.ironedSim && cellSize >= 8) {
+              // Subtle melted center dimple & glossy bevel
+              ctx.fillStyle = 'rgba(255,255,255,0.14)';
+              ctx.fillRect(px + pad, py + pad, cellSize - pad * 2, Math.max(1, cellSize * 0.12));
+              ctx.fillStyle = 'rgba(0,0,0,0.22)';
+              ctx.beginPath();
+              ctx.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.11, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          } else {
+            // Un-ironed Circular Perler Bead with center hole
+            const cx = px + cellSize / 2;
+            const cy = py + cellSize / 2;
+            const outerR = cellSize * 0.46;
+            const innerR = cellSize * 0.16;
+
+            ctx.fillStyle = bead.hex;
+            ctx.beginPath();
+            ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Inner bead hole (subtle when showing text code, stronger when zoomed or codes off)
+            if (!showCodes && cellSize >= 7) {
+              ctx.fillStyle = '#0f172a';
+              ctx.beginPath();
+              ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+
+          // Highlight ring if this color is currently solo-selected
+          if (isHighlighted) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1.5, cellSize * 0.1);
+            ctx.strokeRect(px + 1, py + 1, cellSize - 2, cellSize - 2);
+          }
+
+          // Color Code Text inside bead (e.g. H7, B17)
+          if (showCodes) {
+            ctx.fillStyle = getContrastText(bead.hex);
+            const fontSize = Math.max(8, Math.min(13, Math.floor(cellSize * 0.36)));
+            ctx.font = `700 ${fontSize}px "JetBrains Mono", monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(getDisplayCode(bead), px + cellSize / 2, py + cellSize / 2 + 0.5);
+          }
+        }
+      }
+
+      ctx.globalAlpha = 1.0;
+
+      // Grid lines in Pattern Mode (1x1 subtle, 5x5 medium, 10x10 bold)
+      if (state.viewMode === 'pattern') {
+        if (cellSize >= 7) {
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.16)';
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          for (let x = 0; x <= W; x++) {
+            const lx = originX + x * cellSize;
+            ctx.moveTo(lx, originY);
+            ctx.lineTo(lx, originY + boardPxH);
+          }
+          for (let y = 0; y <= H; y++) {
+            const ly = originY + y * cellSize;
+            ctx.moveTo(originX, ly);
+            ctx.lineTo(originX + boardPxW, ly);
+          }
+          ctx.stroke();
+        }
+
+        // Every 5 and 10 cells major guide lines
+        for (let x = 0; x <= W; x += 5) {
+          const lx = originX + x * cellSize;
+          ctx.strokeStyle = x % 10 === 0 ? 'rgba(244, 63, 94, 0.65)' : 'rgba(148, 163, 184, 0.42)';
+          ctx.lineWidth = x % 10 === 0 ? 1.5 : 1.0;
+          ctx.beginPath();
+          ctx.moveTo(lx, originY);
+          ctx.lineTo(lx, originY + boardPxH);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= H; y += 5) {
+          const ly = originY + y * cellSize;
+          ctx.strokeStyle = y % 10 === 0 ? 'rgba(244, 63, 94, 0.65)' : 'rgba(148, 163, 184, 0.42)';
+          ctx.lineWidth = y % 10 === 0 ? 1.5 : 1.0;
+          ctx.beginPath();
+          ctx.moveTo(originX, ly);
+          ctx.lineTo(originX + boardPxW, ly);
+          ctx.stroke();
+        }
+
+        // Draw Multi-Board Splicing Split Lines & Zone Labels (A1, A2, B1...) if enabled and board > single tile unit
+        if (state.showTileSplitLines && state.tileUnitW > 0 && state.tileUnitH > 0 && (W > state.tileUnitW || H > state.tileUnitH)) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
+          ctx.lineWidth = 2.2;
+          ctx.setLineDash([7, 4]);
+          for (let tx = state.tileUnitW; tx < W; tx += state.tileUnitW) {
+            const lx = originX + tx * cellSize;
+            ctx.beginPath();
+            ctx.moveTo(lx, originY);
+            ctx.lineTo(lx, originY + boardPxH);
+            ctx.stroke();
+          }
+          for (let ty = state.tileUnitH; ty < H; ty += state.tileUnitH) {
+            const ly = originY + ty * cellSize;
+            ctx.beginPath();
+            ctx.moveTo(originX, ly);
+            ctx.lineTo(originX + boardPxW, ly);
+            ctx.stroke();
+          }
+          ctx.setLineDash([]);
+
+          // Draw tile zone labels (A1, A2, B1, B2)
+          const colsCount = Math.ceil(W / state.tileUnitW);
+          const rowsCount = Math.ceil(H / state.tileUnitH);
+          ctx.font = 'bold 11px "JetBrains Mono", monospace';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          for (let r = 0; r < rowsCount; r++) {
+            const rowLetter = String.fromCharCode(65 + (r % 26));
+            for (let c = 0; c < colsCount; c++) {
+              const zx = originX + c * state.tileUnitW * cellSize + 5;
+              const zy = originY + r * state.tileUnitH * cellSize + 5;
+              const tag = `${rowLetter}${c + 1}`;
+              ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+              ctx.fillRect(zx - 2, zy - 1, 24, 15);
+              ctx.fillStyle = '#38bdf8';
+              ctx.fillText(tag, zx, zy);
+            }
+          }
+          ctx.restore();
+        }
+      }
+
+      // Draw active Lasso rectangle in Step 2
+      if (state.lassoRect) {
+        const { x1, y1, x2, y2 } = state.lassoRect;
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 3]);
+        ctx.strokeRect(
+          originX + minX * cellSize,
+          originY + minY * cellSize,
+          (maxX - minX + 1) * cellSize,
+          (maxY - minY + 1) * cellSize
+        );
+        ctx.setLineDash([]);
+      }
+
+      ctx.restore();
+    }
+
+    // 3D Isometric / Tilted Cylindrical Bead Rendering
+    function render3DPegboard(ctx, metrics) {
+      const { cw, ch, W, H, cellSize } = metrics;
+      ctx.save();
+      ctx.translate(cw / 2 + state.panX, ch / 2 + state.panY);
+
+      const tiltRad = (state.tilt3D * Math.PI) / 180;
+      const rotRad = (state.rotate3D * Math.PI) / 180;
+      const cosR = Math.cos(rotRad), sinR = Math.sin(rotRad);
+      const yScale = Math.cos(tiltRad);
+      const extrudeH = Math.max(3, cellSize * 0.42 * Math.sin(tiltRad));
+
+      function project(gx, gy) {
+        const cx = (gx - W / 2) * cellSize;
+        const cy = (gy - H / 2) * cellSize;
+        const rx = cx * cosR - cy * sinR;
+        const ry = (cx * sinR + cy * cosR) * yScale;
+        return { x: rx, y: ry };
+      }
+
+      // Draw 3D Pegboard Base Plate
+      const c0 = project(-1, -1);
+      const c1 = project(W + 1, -1);
+      const c2 = project(W + 1, H + 1);
+      const c3 = project(-1, H + 1);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(c0.x, c0.y);
+      ctx.lineTo(c1.x, c1.y);
+      ctx.lineTo(c2.x, c2.y);
+      ctx.lineTo(c3.x, c3.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Render beads back-to-front for accurate 3D occlusion
+      for (let y = 0; y < H; y++) {
+        const row = state.grid[y];
+        if (!row) continue;
+        for (let x = 0; x < W; x++) {
+          const drawCol = state.mirrored ? (W - 1 - x) : x;
+          const bead = row[drawCol];
+          const pt = project(x + 0.5, y + 0.5);
+
+          if (!bead) {
+            // Peg pin
+            ctx.fillStyle = 'rgba(148,163,184,0.22)';
+            ctx.beginPath();
+            ctx.ellipse(pt.x, pt.y, cellSize * 0.12, cellSize * 0.12 * yScale, 0, 0, Math.PI * 2);
+            ctx.fill();
+            continue;
+          }
+
+          const rX = cellSize * 0.45;
+          const rY = cellSize * 0.45 * yScale;
+
+          // Cylinder Side Wall (shaded darker)
+          ctx.fillStyle = bead.hex;
+          ctx.beginPath();
+          ctx.ellipse(pt.x, pt.y, rX, rY, 0, 0, Math.PI);
+          ctx.lineTo(pt.x - rX, pt.y - extrudeH);
+          ctx.ellipse(pt.x, pt.y - extrudeH, rX, rY, 0, Math.PI, 0, true);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = 'rgba(0,0,0,0.28)';
+          ctx.fill();
+
+          // Cylinder Top Face
+          ctx.fillStyle = bead.hex;
+          ctx.beginPath();
+          ctx.ellipse(pt.x, pt.y - extrudeH, rX, rY, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Specular rim highlight
+          ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Center hole on top of 3D bead
+          if (!state.ironedSim) {
+            ctx.fillStyle = 'rgba(15,23,42,0.75)';
+            ctx.beginPath();
+            ctx.ellipse(pt.x, pt.y - extrudeH, rX * 0.36, rY * 0.36, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // 8. UI PANEL RENDERING FUNCTIONS
+    // =========================================================================
+    function renderColorStyleCards() {
+      const container = document.getElementById('colorStyleGrid');
+      container.innerHTML = '';
+
+      COLOR_STYLES.forEach(st => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const isActive = state.colorStyle === st.id;
+        btn.className = `p-2.5 rounded-xl border text-left transition flex flex-col gap-1.5 ${
+          isActive
+            ? 'style-card-active border-rose-500 bg-rose-500/10'
+            : 'border-slate-700/80 bg-slate-800/50 hover:border-slate-500'
+        }`;
+
+        const swatchesHtml = st.swatches
+          .map(hex => `<span class="w-3.5 h-3.5 rounded-full border border-white/20" style="background:${hex}"></span>`)
+          .join('');
+
+        btn.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-100">${st.name}</span>
+            <div class="flex items-center -space-x-1">${swatchesHtml}</div>
+          </div>
+          <div class="text-[10px] text-slate-400 truncate">${st.desc}</div>
+        `;
+
+        btn.addEventListener('click', () => {
+          state.colorStyle = st.id;
+          document.getElementById('currentStyleTag').textContent = `${st.name} · ${st.desc}`;
+          document.getElementById('styleBadgeHeader').textContent = st.name;
+          renderColorStyleCards();
+          generateBeadPatternFromImage();
+          showToast(`已切换色彩风格：${st.name}`);
+        });
+
+        container.appendChild(btn);
+      });
+    }
+
+    function renderPresetBoardSizeCards() {
+      const container = document.getElementById('presetSizesGrid');
+      container.innerHTML = '';
+
+      const fillRatio = state.gridWidth * state.gridHeight > 0
+        ? state.totalBeadsCount / (state.gridWidth * state.gridHeight)
+        : 0.31;
+
+      PRESET_BOARD_SIZES.forEach(item => {
+        const isCurrent = state.gridWidth === item.w && state.gridHeight === item.h;
+        const estBeads = isCurrent
+          ? state.totalBeadsCount
+          : Math.max(25, Math.round(item.w * item.h * fillRatio));
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `p-2 rounded-xl border text-left relative transition ${
+          isCurrent
+            ? 'size-card-active border-rose-500 bg-rose-500/15'
+            : 'border-slate-700/80 bg-slate-800/50 hover:border-slate-500'
+        }`;
+
+        btn.innerHTML = `
+          ${item.rec ? '<span class="absolute -top-2 right-1.5 px-1.5 py-0.2 rounded bg-rose-500 text-[9px] font-bold text-white">推荐</span>' : ''}
+          <div class="text-xs font-bold mono-font text-white">${item.label}</div>
+          <div class="text-[10px] text-slate-400 truncate">${item.desc} · ${estBeads}颗</div>
+        `;
+
+        btn.addEventListener('click', () => {
+          applyOverallBoardDimensions(item.w, item.h, false);
+          showToast(`已切换整体图版尺寸：${item.label} (${item.desc})`);
+        });
+
+        container.appendChild(btn);
+      });
+    }
+
+    function renderBrandSpecifications() {
+      // MARD counts
+      const mardWrap = document.getElementById('mardCountsContainer');
+      mardWrap.innerHTML = '';
+      MARD_COUNTS.forEach(cnt => {
+        const active = state.activeBrandId === 'mard' && state.mardTier === cnt;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `px-2.5 py-1 rounded-lg border text-xs mono-font font-semibold transition ${
+          active
+            ? 'brand-chip-active border-rose-500 bg-rose-500/20 text-rose-300'
+            : 'border-slate-700 bg-slate-900/70 text-slate-300 hover:border-slate-500'
+        }`;
+        btn.textContent = `${cnt}色`;
+        btn.addEventListener('click', () => {
+          state.activeBrandId = 'mard';
+          state.mardTier = cnt;
+          renderBrandSpecifications();
+          generateBeadPatternFromImage();
+        });
+        mardWrap.appendChild(btn);
+      });
+
+      // Domestic, Overseas, Artkal
+      const otherWrap = document.getElementById('otherBrandsContainer');
+      otherWrap.innerHTML = '';
+      BRAND_GROUPS.forEach(group => {
+        const box = document.createElement('div');
+        box.className = 'bg-slate-800/40 border border-slate-700/60 rounded-xl p-3 space-y-2';
+        box.innerHTML = `<div class="text-[11px] font-semibold text-slate-300">${group.category}</div>`;
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-2 gap-1.5';
+
+        group.items.forEach(brand => {
+          const active = state.activeBrandId === brand.id;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `p-2 rounded-lg border text-left transition ${
+            active
+              ? 'brand-chip-active border-rose-500 bg-rose-500/15'
+              : 'border-slate-700/70 bg-slate-900/60 hover:border-slate-500'
+          }`;
+          btn.innerHTML = `
+            <div class="text-xs font-bold text-slate-100">${brand.name}</div>
+            <div class="text-[10px] text-slate-400 truncate">${brand.sub}</div>
+          `;
+          btn.addEventListener('click', () => {
+            state.activeBrandId = brand.id;
+            state.mardTier = 291;
+            renderBrandSpecifications();
+            renderAll();
+            showToast(`已切换品牌色卡：${brand.name}`);
+          });
+          grid.appendChild(btn);
+        });
+
+        box.appendChild(grid);
+        otherWrap.appendChild(box);
+      });
+    }
+
+    function renderStep2Palette() {
+      const container = document.getElementById('paletteListContainer');
+      container.innerHTML = '';
+
+      const usedMap = new Map();
+      state.usedColorsSummary.forEach(item => usedMap.set(item.bead.code, item.count));
+
+      if (state.paletteTab === 'used') {
+        state.usedColorsSummary.forEach(({ bead, count }) => {
+          const isSelected = state.selectedBeadColor && state.selectedBeadColor.code === bead.code;
+          const row = document.createElement('div');
+          row.className = `p-2 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition ${
+            isSelected
+              ? 'border-rose-500 bg-rose-500/15'
+              : 'border-slate-700/70 bg-slate-900/60 hover:border-slate-500'
+          }`;
+
+          row.innerHTML = `
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-6 h-6 rounded-lg border border-white/25 flex items-center justify-center text-[10px] font-bold mono-font shrink-0"
+                style="background:${bead.hex};color:${getContrastText(bead.hex)}">
+                ${getDisplayCode(bead)}
+              </span>
+              <div class="min-w-0">
+                <div class="text-xs font-bold text-white truncate">${getDisplayCode(bead)} · ${bead.name}</div>
+                <div class="text-[10px] text-slate-400 mono-font">${bead.hex}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-xs font-semibold text-rose-300 mono-font">${count} 颗</span>
+            </div>
+          `;
+
+          row.addEventListener('click', () => {
+            selectBrushBeadColor(bead);
+          });
+          container.appendChild(row);
+        });
+      } else {
+        // Clear / Blank option at top
+        const blankBtn = document.createElement('button');
+        blankBtn.type = 'button';
+        blankBtn.className = 'w-full p-2 rounded-xl border border-dashed border-slate-600 hover:border-rose-400 text-xs text-slate-300 flex items-center justify-center gap-2 mb-2';
+        blankBtn.innerHTML = '<span>🧹 空白 清除（橡皮擦模式）</span>';
+        blankBtn.addEventListener('click', () => {
+          setEditTool('eraser');
+        });
+        container.appendChild(blankBtn);
+
+        const q = state.paletteSearch.trim().toLowerCase();
+        const filtered = BASE_BEAD_PALETTE.filter(b => {
+          if (!q) return true;
+          return (
+            b.code.toLowerCase().includes(q) ||
+            getDisplayCode(b).toLowerCase().includes(q) ||
+            b.name.toLowerCase().includes(q) ||
+            b.hex.toLowerCase().includes(q)
+          );
+        });
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-2 gap-1.5';
+
+        filtered.forEach(bead => {
+          const usedCount = usedMap.get(bead.code) || 0;
+          const isSelected = state.selectedBeadColor && state.selectedBeadColor.code === bead.code;
+          const card = document.createElement('button');
+          card.type = 'button';
+          card.className = `p-2 rounded-lg border text-left flex items-center gap-2 relative transition ${
+            isSelected
+              ? 'border-rose-500 bg-rose-500/15'
+              : 'border-slate-700/70 bg-slate-900/60 hover:border-slate-500'
+          }`;
+
+          card.innerHTML = `
+            <span class="w-6 h-6 rounded-md border border-white/20 flex items-center justify-center text-[10px] font-bold mono-font shrink-0"
+              style="background:${bead.hex};color:${getContrastText(bead.hex)}">
+              ${getDisplayCode(bead)}
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-semibold text-slate-100 truncate">${bead.name}</div>
+              <div class="text-[10px] text-slate-400 mono-font">${usedCount > 0 ? `在用 ${usedCount}颗` : bead.hex}</div>
+            </div>
+          `;
+
+          card.addEventListener('click', () => {
+            selectBrushBeadColor(bead);
+          });
+          grid.appendChild(card);
+        });
+
+        container.appendChild(grid);
+      }
+    }
+
+    function selectBrushBeadColor(bead) {
+      state.selectedBeadColor = bead;
+      if (state.activeTool === 'eraser') {
+        setEditTool('brush');
+      }
+      const sw = document.getElementById('activeBrushSwatch');
+      sw.style.background = bead.hex;
+      sw.style.color = getContrastText(bead.hex);
+      sw.textContent = getDisplayCode(bead);
+      document.getElementById('activeBrushTitle').textContent = `${getDisplayCode(bead)} · ${bead.name}`;
+      document.getElementById('activeBrushHex').textContent = bead.hex;
+      renderStep2Palette();
+    }
+
+    function renderStep3Checklist() {
+      const container = document.getElementById('assistChecklistContainer');
+      container.innerHTML = '';
+
+      const items = [...state.usedColorsSummary];
+      if (state.assistSort === 'code') {
+        items.sort((a, b) => a.bead.code.localeCompare(b.bead.code, 'zh-CN', { numeric: true }));
+      } else {
+        items.sort((a, b) => b.count - a.count);
+      }
+
+      let completedBeads = 0;
+      let completedColors = 0;
+      items.forEach(({ bead, count }) => {
+        if (state.checkedColorCodes.has(bead.code)) {
+          completedBeads += count;
+          completedColors++;
+        }
+      });
+
+      const pct = state.totalBeadsCount > 0
+        ? Math.round((completedBeads / state.totalBeadsCount) * 100)
+        : 0;
+
+      document.getElementById('beadingProgressText').textContent =
+        `${pct}% 已拼 ${completedBeads} / ${state.totalBeadsCount} 颗 · 打卡 ${completedColors} / ${items.length} 色`;
+      document.getElementById('beadingProgressBar').style.width = `${pct}%`;
+
+      document.getElementById('checkAllColorsBox').checked =
+        items.length > 0 && completedColors === items.length;
+
+      items.forEach(({ bead, count }) => {
+        const isChecked = state.checkedColorCodes.has(bead.code);
+        const isHighlighted = state.highlightedColorCode === bead.code;
+
+        const row = document.createElement('div');
+        row.className = `p-2.5 rounded-xl border flex items-center justify-between gap-2 transition cursor-pointer ${
+          isHighlighted
+            ? 'border-amber-400 bg-amber-500/15 shadow-md'
+            : isChecked
+            ? 'border-emerald-500/40 bg-emerald-950/20 opacity-70'
+            : 'border-slate-700/80 bg-slate-800/50 hover:border-slate-600'
+        }`;
+
+        row.innerHTML = `
+          <div class="flex items-center gap-2.5 min-w-0 flex-1">
+            <span class="w-7 h-7 rounded-lg border border-white/25 flex items-center justify-center text-xs font-bold mono-font shrink-0"
+              style="background:${bead.hex};color:${getContrastText(bead.hex)}">
+              ${getDisplayCode(bead)}
+            </span>
+            <div class="min-w-0">
+              <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span class="mono-font">${getDisplayCode(bead)}</span>
+                <span class="text-slate-300 font-medium truncate">${bead.name}</span>
+                ${isHighlighted ? '<span class="px-1.5 py-0.2 rounded bg-amber-400 text-slate-950 text-[10px] font-bold">高亮中</span>' : ''}
+              </div>
+              <div class="text-[11px] text-rose-300 font-semibold mono-font">${count} 颗</div>
+            </div>
+          </div>
+          <label class="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-slate-700/50 cursor-pointer shrink-0" onclick="event.stopPropagation()">
+            <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-500 focus:ring-0" />
+            <span class="text-[11px] text-slate-300">${isChecked ? '已拼完' : '打卡'}</span>
+          </label>
+        `;
+
+        // Click row to highlight all beads of this color on the canvas
+        row.addEventListener('click', () => {
+          if (state.highlightedColorCode === bead.code) {
+            state.highlightedColorCode = null;
+          } else {
+            state.highlightedColorCode = bead.code;
+          }
+          updateHighlightBanner();
+          renderStep3Checklist();
+          renderMainCanvas();
+        });
+
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        checkbox.addEventListener('change', (e) => {
+          if (e.target.checked) {
+            state.checkedColorCodes.add(bead.code);
+          } else {
+            state.checkedColorCodes.delete(bead.code);
+          }
+          renderStep3Checklist();
+          renderMainCanvas();
+        });
+
+        container.appendChild(row);
+      });
+    }
+
+    function updateHighlightBanner() {
+      const banner = document.getElementById('highlightBanner');
+      if (!state.highlightedColorCode) {
+        banner.classList.add('hidden');
+        banner.classList.remove('flex');
+        return;
+      }
+      const found = state.usedColorsSummary.find(u => u.bead.code === state.highlightedColorCode);
+      if (!found) {
+        state.highlightedColorCode = null;
+        banner.classList.add('hidden');
+        return;
+      }
+      banner.classList.remove('hidden');
+      banner.classList.add('flex');
+      document.getElementById('highlightBannerText').textContent =
+        `正在高亮：${getDisplayCode(found.bead)} ${found.bead.name} (${found.count} 颗)`;
+    }
+
+    function renderAll() {
+      renderMainCanvas();
+      updateUndoRedoButtons();
+    }
+
+    // =========================================================================
+    // 9. INTERACTIVE CANVAS EDITING, PANNING, AND ZOOMING
+    // =========================================================================
+    let isPointerDown = false;
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+
+    function clientToGridCoords(clientX, clientY) {
+      const rect = mainCanvas.getBoundingClientRect();
+      const mx = clientX - rect.left;
+      const my = clientY - rect.top;
+      const { W, H, cellSize, originX, originY } = getLayoutMetrics();
+      const gx = Math.floor((mx - originX) / cellSize);
+      const gy = Math.floor((my - originY) / cellSize);
+      if (gx < 0 || gx >= W || gy < 0 || gy >= H) return null;
+      const actualX = state.mirrored ? (W - 1 - gx) : gx;
+      return { x: actualX, y: gy, displayX: gx + 1, displayY: gy + 1 };
+    }
+
+    function pushUndoSnapshot() {
+      const clone = state.grid.map(row => [...row]);
+      state.undoStack.push(clone);
+      if (state.undoStack.length > 30) state.undoStack.shift();
+      state.redoStack = [];
+      updateUndoRedoButtons();
+    }
+
+    function updateUndoRedoButtons() {
+      document.getElementById('undoEditBtn').disabled = state.undoStack.length === 0;
+      document.getElementById('redoEditBtn').disabled = state.redoStack.length === 0;
+    }
+
+    function floodFillGrid(startX, startY, replacementBead) {
+      const W = state.gridWidth, H = state.gridHeight;
+      const targetBead = state.grid[startY][startX];
+      const targetCode = targetBead ? targetBead.code : null;
+      const repCode = replacementBead ? replacementBead.code : null;
+      if (targetCode === repCode) return;
+
+      const queue = [[startX, startY]];
+      const visited = new Set([`${startX},${startY}`]);
+
+      while (queue.length > 0) {
+        const [cx, cy] = queue.shift();
+        state.grid[cy][cx] = replacementBead;
+
+        const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        for (const [dx, dy] of dirs) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
+            const key = `${nx},${ny}`;
+            if (!visited.has(key)) {
+              const nb = state.grid[ny][nx];
+              const nbCode = nb ? nb.code : null;
+              if (nbCode === targetCode) {
+                visited.add(key);
+                queue.push([nx, ny]);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    mainCanvas.addEventListener('mousedown', (e) => {
+      const cell = clientToGridCoords(e.clientX, e.clientY);
+
+      // In Step 2, left-click edits the pattern unless Alt/Space/Middle/Right button is held
+      if (state.step === 2 && state.viewMode === 'pattern' && state.perspective === '2d' && e.button === 0 && !e.altKey && cell) {
+        isPointerDown = true;
+        if (state.activeTool === 'picker') {
+          const picked = state.grid[cell.y][cell.x];
+          if (picked) {
+            selectBrushBeadColor(picked);
+            setEditTool('brush');
+            showToast(`已吸取色号：${getDisplayCode(picked)} ${picked.name}`);
+          }
+          return;
+        }
+        if (state.activeTool === 'fill') {
+          pushUndoSnapshot();
+          floodFillGrid(cell.x, cell.y, state.selectedBeadColor);
+          recalculatePatternStats();
+          renderMainCanvas();
+          return;
+        }
+        if (state.activeTool === 'lasso') {
+          state.lassoRect = { x1: cell.displayX - 1, y1: cell.displayY - 1, x2: cell.displayX - 1, y2: cell.displayY - 1 };
+          renderMainCanvas();
+          return;
+        }
+        // Brush or Eraser
+        pushUndoSnapshot();
+        state.grid[cell.y][cell.x] = state.activeTool === 'eraser' ? null : state.selectedBeadColor;
+        recalculatePatternStats();
+        renderMainCanvas();
+        return;
+      }
+
+      // Otherwise pan the canvas
+      isPanning = true;
+      panStartX = e.clientX - state.panX;
+      panStartY = e.clientY - state.panY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      const cell = clientToGridCoords(e.clientX, e.clientY);
+      const badge = document.getElementById('hoverCellBadge');
+
+      if (cell && state.grid[cell.y]) {
+        const bead = state.grid[cell.y][cell.x];
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+        document.getElementById('hoverCoordText').textContent = `(${cell.displayX}, ${cell.displayY})`;
+        if (bead) {
+          document.getElementById('hoverSwatchDot').style.background = bead.hex;
+          document.getElementById('hoverColorCodeText').textContent = getDisplayCode(bead);
+          document.getElementById('hoverColorNameText').textContent = bead.name;
+        } else {
+          document.getElementById('hoverSwatchDot').style.background = 'transparent';
+          document.getElementById('hoverColorCodeText').textContent = '空白';
+          document.getElementById('hoverColorNameText').textContent = '无豆';
+        }
+      } else {
+        badge.classList.add('hidden');
+        badge.classList.remove('flex');
+      }
+
+      if (isPanning) {
+        state.panX = e.clientX - panStartX;
+        state.panY = e.clientY - panStartY;
+        renderMainCanvas();
+        return;
+      }
+
+      if (isPointerDown && cell && state.step === 2) {
+        if (state.activeTool === 'lasso' && state.lassoRect) {
+          state.lassoRect.x2 = cell.displayX - 1;
+          state.lassoRect.y2 = cell.displayY - 1;
+          renderMainCanvas();
+        } else if (state.activeTool === 'brush' || state.activeTool === 'eraser') {
+          const nextVal = state.activeTool === 'eraser' ? null : state.selectedBeadColor;
+          if (state.grid[cell.y][cell.x] !== nextVal) {
+            state.grid[cell.y][cell.x] = nextVal;
+            recalculatePatternStats();
+            renderMainCanvas();
+          }
+        }
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isPointerDown && state.activeTool === 'lasso' && state.lassoRect) {
+        pushUndoSnapshot();
+        const { x1, y1, x2, y2 } = state.lassoRect;
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        for (let y = minY; y <= maxY; y++) {
+          for (let x = minX; x <= maxX; x++) {
+            const actualX = state.mirrored ? (state.gridWidth - 1 - x) : x;
+            if (state.grid[y] && actualX >= 0 && actualX < state.gridWidth) {
+              state.grid[y][actualX] = state.selectedBeadColor;
+            }
+          }
+        }
+        state.lassoRect = null;
+        recalculatePatternStats();
+        renderMainCanvas();
+      }
+      isPointerDown = false;
+      isPanning = false;
+    });
+
+    mainCanvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 1.14 : 0.88;
+      state.zoom = Math.max(0.4, Math.min(5.0, state.zoom * delta));
+      document.getElementById('zoomPercentLabel').textContent = `${Math.round(state.zoom * 100)}%`;
+      renderMainCanvas();
+    }, { passive: false });
+
+    // =========================================================================
+    // 10. EXPORT HIGH-RESOLUTION PATTERN IMAGE GENERATOR
+    // =========================================================================
+    function generateHighResExportCanvas() {
+      const exportCanvas = document.getElementById('exportSheetCanvas');
+      const W = state.gridWidth;
+      const H = state.gridHeight;
+      const cellPx = W > 100 ? 18 : 24;
+      const rulerMargin = 32;
+      const pad = 32;
+
+      const paletteItems = state.usedColorsSummary;
+      const cols = 4;
+      const legendRows = Math.ceil(paletteItems.length / cols);
+      const headerH = 88;
+      const legendH = Math.max(90, legendRows * 38 + 64);
+
+      const totalW = Math.max(720, pad * 2 + rulerMargin + W * cellPx);
+      const totalH = headerH + rulerMargin + H * cellPx + legendH + pad;
+
+      exportCanvas.width = totalW;
+      exportCanvas.height = totalH;
+      const ctx = exportCanvas.getContext('2d');
+
+      // White background sheet
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, totalW, totalH);
+
+      // Header Banner
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, totalW, headerH);
+
+      const title = document.getElementById('projectTitleInput').value || '拼豆工程图纸';
+      const styleObj = COLOR_STYLES.find(s => s.id === state.colorStyle);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 22px "Inter", sans-serif';
+      ctx.fillText(title, pad, 38);
+
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '500 13px "Inter", sans-serif';
+      ctx.fillText(
+        `规格: ${W}×${H}  |  总颗粒数: ${state.totalBeadsCount} 颗 (${paletteItems.length} 色)  |  色彩风格: ${styleObj ? styleObj.name : '原色'}  |  色卡: ${state.activeBrandId.toUpperCase()}`,
+        pad,
+        66
+      );
+
+      // Grid Origin
+      const gx0 = Math.floor((totalW - (W * cellPx)) / 2);
+      const gy0 = headerH + rulerMargin;
+
+      // Top & Left Coordinate Numbers
+      ctx.fillStyle = '#475569';
+      ctx.font = 'bold 10px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      for (let x = 1; x <= W; x++) {
+        if (x === 1 || x % 5 === 0 || x === W) {
+          ctx.fillText(String(x), gx0 + (x - 0.5) * cellPx, gy0 - 12);
+        }
+      }
+      for (let y = 1; y <= H; y++) {
+        if (y === 1 || y % 5 === 0 || y === H) {
+          ctx.fillText(String(y), gx0 - 14, gy0 + (y - 0.5) * cellPx);
+        }
+      }
+
+      // Draw Pattern Cells + Codes
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(gx0, gy0, W * cellPx, H * cellPx);
+
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const drawCol = state.mirrored ? (W - 1 - x) : x;
+          const bead = state.grid[y][drawCol];
+          const px = gx0 + x * cellPx;
+          const cy = gy0 + y * cellPx;
+
+          if (bead) {
+            ctx.fillStyle = bead.hex;
+            ctx.fillRect(px, cy, cellPx, cellPx);
+
+            ctx.fillStyle = getContrastText(bead.hex);
+            ctx.font = `bold ${Math.floor(cellPx * 0.38)}px "JetBrains Mono", monospace`;
+            ctx.fillText(getDisplayCode(bead), px + cellPx / 2, cy + cellPx / 2 + 0.5);
+          }
+        }
+      }
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(100,116,139,0.28)';
+      ctx.lineWidth = 0.6;
+      for (let x = 0; x <= W; x++) {
+        ctx.beginPath();
+        ctx.moveTo(gx0 + x * cellPx, gy0);
+        ctx.lineTo(gx0 + x * cellPx, gy0 + H * cellPx);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= H; y++) {
+        ctx.beginPath();
+        ctx.moveTo(gx0, gy0 + y * cellPx);
+        ctx.lineTo(gx0 + W * cellPx, gy0 + y * cellPx);
+        ctx.stroke();
+      }
+
+      // Bold 10x10 Grid Lines
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 1.5;
+      for (let x = 0; x <= W; x += 10) {
+        ctx.beginPath();
+        ctx.moveTo(gx0 + x * cellPx, gy0);
+        ctx.lineTo(gx0 + x * cellPx, gy0 + H * cellPx);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= H; y += 10) {
+        ctx.beginPath();
+        ctx.moveTo(gx0, gy0 + y * cellPx);
+        ctx.lineTo(gx0 + W * cellPx, gy0 + y * cellPx);
+        ctx.stroke();
+      }
+
+      // Bottom Color Swatch & Quantity Legend
+      const legY0 = gy0 + H * cellPx + 24;
+      ctx.fillStyle = '#0f172a';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 15px "Inter", sans-serif';
+      ctx.fillText(`色号与用量清单（共 ${paletteItems.length} 色 · ${state.totalBeadsCount} 颗）`, pad, legY0);
+
+      const colW = (totalW - pad * 2) / cols;
+      paletteItems.forEach((item, idx) => {
+        const c = idx % cols;
+        const r = Math.floor(idx / cols);
+        const lx = pad + c * colW;
+        const ly = legY0 + 20 + r * 34;
+
+        ctx.fillStyle = item.bead.hex;
+        ctx.fillRect(lx, ly, 24, 24);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(lx, ly, 24, 24);
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 12px "JetBrains Mono", monospace';
+        ctx.fillText(`${getDisplayCode(item.bead)}`, lx + 32, ly + 10);
+
+        ctx.fillStyle = '#475569';
+        ctx.font = '12px "Inter", sans-serif';
+        ctx.fillText(`${item.bead.name} · ${item.count}颗`, lx + 68, ly + 10);
+      });
+    }
+
+    // =========================================================================
+    // 11. EVENT LISTENERS & WORKFLOW WIRING
+    // =========================================================================
+    function showToast(msg) {
+      const t = document.getElementById('toastBanner');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        t.classList.add('hidden');
+      }, 2200);
+    }
+
+    function setStep(stepNum) {
+      state.step = stepNum;
+      [1, 2, 3].forEach(n => {
+        const tab = document.getElementById(`stepTab${n}`);
+        const panel = document.getElementById(`stepPanel${n}`);
+        if (n === stepNum) {
+          tab.className = 'py-2 px-2 rounded-lg text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/40 flex items-center justify-center gap-1.5 transition';
+          panel.classList.remove('hidden');
+        } else {
+          tab.className = 'py-2 px-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center gap-1.5 transition';
+          panel.classList.add('hidden');
+        }
+      });
+      renderMainCanvas();
+    }
+
+    function setViewMode(mode) {
+      state.viewMode = mode;
+      const map = {
+        original: document.getElementById('viewTabOriginal'),
+        converted: document.getElementById('viewTabConverted'),
+        pattern: document.getElementById('viewTabPattern')
+      };
+      Object.entries(map).forEach(([k, btn]) => {
+        if (k === mode) {
+          btn.className = 'px-2.5 sm:px-3 py-1.5 rounded-md bg-rose-500 text-white shadow-sm transition';
+        } else {
+          btn.className = 'px-2.5 sm:px-3 py-1.5 rounded-md text-slate-300 hover:text-white transition';
+        }
+      });
+
+      const perspGroup = document.getElementById('perspectiveSwitchGroup');
+      if (mode === 'pattern') {
+        perspGroup.classList.remove('opacity-40', 'pointer-events-none');
+      } else {
+        perspGroup.classList.add('opacity-40', 'pointer-events-none');
+      }
+      renderMainCanvas();
+    }
+
+    function setEditTool(toolName) {
+      state.activeTool = toolName;
+      document.querySelectorAll('.edit-tool-btn').forEach(btn => {
+        if (btn.dataset.edittool === toolName) {
+          btn.classList.add('tool-btn-active');
+        } else {
+          btn.classList.remove('tool-btn-active');
+        }
+      });
+    }
+
+    function handleUploadedImageFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          state.sourceImage = img;
+          const cleanName = file.name.replace(/\.[^.]+$/, '');
+          document.getElementById('projectTitleInput').value = `${cleanName}·交互拼豆图纸`;
+          updateCreationTimestamp();
+          generateBeadPatternFromImage();
+          showToast(`已成功导入图片：${file.name}`);
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateCreationTimestamp() {
+      const now = new Date();
+      const pad2 = n => String(n).padStart(2, '0');
+      document.getElementById('creationTimeText').textContent =
+        `创建时间 ${now.getFullYear()}年${pad2(now.getMonth() + 1)}月${pad2(now.getDate())}日 ${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+    }
+
+    // Wire up buttons and controls
+    document.getElementById('stepTab1').addEventListener('click', () => setStep(1));
+    document.getElementById('stepTab2').addEventListener('click', () => setStep(2));
+    document.getElementById('stepTab3').addEventListener('click', () => setStep(3));
+    document.getElementById('goStep2Btn').addEventListener('click', () => setStep(2));
+    document.getElementById('goStep3Btn').addEventListener('click', () => setStep(3));
+
+    document.getElementById('viewTabOriginal').addEventListener('click', () => setViewMode('original'));
+    document.getElementById('viewTabConverted').addEventListener('click', () => setViewMode('converted'));
+    document.getElementById('viewTabPattern').addEventListener('click', () => setViewMode('pattern'));
+
+    // 2D / 3D Perspective Switch
+    document.getElementById('angle2DBtn').addEventListener('click', () => {
+      state.perspective = '2d';
+      document.getElementById('angle2DBtn').className = 'px-2 py-1 rounded bg-slate-700 text-white font-medium transition';
+      document.getElementById('angle3DBtn').className = 'px-2 py-1 rounded text-slate-400 hover:text-white transition';
+      document.getElementById('view3DControlBar').classList.add('hidden');
+      document.getElementById('view3DControlBar').classList.remove('flex');
+      renderMainCanvas();
+    });
+
+    document.getElementById('angle3DBtn').addEventListener('click', () => {
+      state.perspective = '3d';
+      document.getElementById('angle3DBtn').className = 'px-2 py-1 rounded bg-rose-500 text-white font-medium transition';
+      document.getElementById('angle2DBtn').className = 'px-2 py-1 rounded text-slate-400 hover:text-white transition';
+      document.getElementById('view3DControlBar').classList.remove('hidden');
+      document.getElementById('view3DControlBar').classList.add('flex');
+      renderMainCanvas();
+    });
+
+    document.getElementById('tilt3DSlider').addEventListener('input', (e) => {
+      state.tilt3D = Number(e.target.value);
+      renderMainCanvas();
+    });
+    document.getElementById('rotate3DSlider').addEventListener('input', (e) => {
+      state.rotate3D = Number(e.target.value);
+      renderMainCanvas();
+    });
+
+    // Layout Switcher (Left Sidebar / Bottom Drawer / Right Sidebar)
+    function setPanelLayout(mode) {
+      state.layout = mode;
+      const ws = document.getElementById('mainWorkspace');
+      const aside = document.getElementById('controlPanelAside');
+      const bLeft = document.getElementById('layoutLeftBtn');
+      const bBottom = document.getElementById('layoutBottomBtn');
+      const bRight = document.getElementById('layoutRightBtn');
+
+      [bLeft, bBottom, bRight].forEach(b => b.className = 'p-1.5 rounded text-slate-400 hover:text-white transition');
+
+      if (mode === 'left') {
+        bLeft.className = 'p-1.5 rounded bg-slate-700 text-white transition';
+        ws.className = 'flex-1 flex flex-col md:flex-row-reverse overflow-hidden relative';
+        aside.className = 'w-full md:w-[390px] lg:w-[420px] h-[48vh] md:h-full bg-slate-900 border-t md:border-t-0 md:border-r border-slate-800 flex flex-col shrink-0 z-20';
+      } else if (mode === 'bottom') {
+        bBottom.className = 'p-1.5 rounded bg-slate-700 text-white transition';
+        ws.className = 'flex-1 flex flex-col overflow-hidden relative';
+        aside.className = 'w-full h-[46vh] bg-slate-900 border-t border-slate-800 flex flex-col shrink-0 z-20';
+      } else {
+        bRight.className = 'p-1.5 rounded bg-slate-700 text-white transition';
+        ws.className = 'flex-1 flex flex-col md:flex-row overflow-hidden relative';
+        aside.className = 'w-full md:w-[390px] lg:w-[420px] h-[48vh] md:h-full bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800 flex flex-col shrink-0 z-20';
+      }
+      setTimeout(renderMainCanvas, 30);
+    }
+
+    document.getElementById('layoutLeftBtn').addEventListener('click', () => setPanelLayout('left'));
+    document.getElementById('layoutBottomBtn').addEventListener('click', () => setPanelLayout('bottom'));
+    document.getElementById('layoutRightBtn').addEventListener('click', () => setPanelLayout('right'));
+
+    // Floating Right Canvas Toolbar
+    document.getElementById('mirrorFlipBtn').addEventListener('click', () => {
+      state.mirrored = !state.mirrored;
+      document.getElementById('mirrorFlipBtn').classList.toggle('bg-slate-800', state.mirrored);
+      document.getElementById('mirrorFlipBtn').classList.toggle('text-rose-400', state.mirrored);
+      renderMainCanvas();
+      showToast(state.mirrored ? '已开启水平镜像翻转' : '已关闭镜像翻转');
+    });
+
+    document.getElementById('ironMeltSimBtn').addEventListener('click', () => {
+      state.ironedSim = !state.ironedSim;
+      document.getElementById('ironMeltSimBtn').classList.toggle('bg-slate-800', state.ironedSim);
+      document.getElementById('ironMeltSimBtn').classList.toggle('text-amber-300', state.ironedSim);
+      renderMainCanvas();
+      showToast(state.ironedSim ? '已开启模拟熨烫融豆效果' : '已恢复颗粒拼豆视角');
+    });
+
+    document.getElementById('toggleCodeLabelsBtn').addEventListener('click', () => {
+      state.showColorCodes = !state.showColorCodes;
+      document.getElementById('toggleCodeLabelsBtn').classList.toggle('bg-slate-800', state.showColorCodes);
+      document.getElementById('toggleCodeLabelsBtn').classList.toggle('text-rose-400', state.showColorCodes);
+      renderMainCanvas();
+    });
+
+    document.getElementById('zoomInBtn').addEventListener('click', () => {
+      state.zoom = Math.min(5.0, state.zoom * 1.25);
+      document.getElementById('zoomPercentLabel').textContent = `${Math.round(state.zoom * 100)}%`;
+      renderMainCanvas();
+    });
+
+    document.getElementById('zoomOutBtn').addEventListener('click', () => {
+      state.zoom = Math.max(0.4, state.zoom * 0.8);
+      document.getElementById('zoomPercentLabel').textContent = `${Math.round(state.zoom * 100)}%`;
+      renderMainCanvas();
+    });
+
+    document.getElementById('zoomResetBtn').addEventListener('click', () => {
+      state.zoom = 1.0;
+      state.panX = 0;
+      state.panY = 0;
+      document.getElementById('zoomPercentLabel').textContent = '100%';
+      renderMainCanvas();
+    });
+
+    // Image Upload & Presets
+    const fileInput = document.getElementById('fileUploadInput');
+    document.getElementById('topUploadBtn').addEventListener('click', () => fileInput.click());
+    document.getElementById('step1UploadCardBtn').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleUploadedImageFile(e.target.files[0]);
+      }
+    });
+
+    // Drag & Drop support
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      document.getElementById('dropzoneOverlay').classList.remove('hidden');
+    });
+    window.addEventListener('dragleave', (e) => {
+      if (e.Target === null || e.relatedTarget === null) {
+        document.getElementById('dropzoneOverlay').classList.add('hidden');
+      }
+    });
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      document.getElementById('dropzoneOverlay').classList.add('hidden');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleUploadedImageFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Preset Sample Buttons
+    document.getElementById('presetBtnWarhammer').addEventListener('click', () => {
+      const thumb = document.getElementById('warhammerThumbImg');
+      state.sourceImage = thumb;
+      document.getElementById('projectTitleInput').value = '鎏金曦光战锤·交互拼豆图纸';
+      generateBeadPatternFromImage();
+      showToast('已加载示例：鎏金曦光战锤');
+    });
+
+    document.getElementById('presetBtnPotion').addEventListener('click', () => {
+      state.sourceImage = createProceduralPresetImage('potion');
+      document.getElementById('projectTitleInput').value = '星月魔法药水·交互拼豆图纸';
+      generateBeadPatternFromImage();
+      showToast('已加载示例：星月魔法药水');
+    });
+
+    document.getElementById('presetBtnShiba').addEventListener('click', () => {
+      state.sourceImage = createProceduralPresetImage('shiba');
+      document.getElementById('projectTitleInput').value = '赛博霓虹柴犬·交互拼豆图纸';
+      generateBeadPatternFromImage();
+      showToast('已加载示例：赛博霓虹柴犬');
+    });
+
+    document.getElementById('presetBtnCatCake').addEventListener('click', () => {
+      state.sourceImage = createProceduralPresetImage('catcake');
+      document.getElementById('projectTitleInput').value = '甜心草莓萌猫·交互拼豆图纸';
+      generateBeadPatternFromImage();
+      showToast('已加载示例：甜心草莓萌猫');
+    });
+
+    document.getElementById('removeBgCheckbox').addEventListener('change', (e) => {
+      state.removeBg = e.target.checked;
+      generateBeadPatternFromImage();
+    });
+
+    // Dithering & Sliders
+    document.getElementById('ditherCleanBtn').addEventListener('click', () => {
+      state.dithering = false;
+      document.getElementById('ditherCleanBtn').className = 'px-2 py-1 rounded bg-rose-500 text-white font-medium transition';
+      document.getElementById('ditherFloydBtn').className = 'px-2 py-1 rounded text-slate-400 hover:text-white transition';
+      generateBeadPatternFromImage();
+    });
+
+    document.getElementById('ditherFloydBtn').addEventListener('click', () => {
+      state.dithering = true;
+      document.getElementById('ditherFloydBtn').className = 'px-2 py-1 rounded bg-rose-500 text-white font-medium transition';
+      document.getElementById('ditherCleanBtn').className = 'px-2 py-1 rounded text-slate-400 hover:text-white transition';
+      generateBeadPatternFromImage();
+    });
+
+    document.getElementById('brightnessSlider').addEventListener('input', (e) => {
+      state.brightness = Number(e.target.value);
+      document.getElementById('brightnessValText').textContent = state.brightness;
+      generateBeadPatternFromImage();
+    });
+
+    document.getElementById('contrastSlider').addEventListener('input', (e) => {
+      state.contrast = Number(e.target.value);
+      document.getElementById('contrastValText').textContent = state.contrast;
+      generateBeadPatternFromImage();
+    });
+
+    // =========================================================================
+    // OVERALL BOARD SIZE CUSTOMIZATION FUNCTIONS & LISTENERS
+    // =========================================================================
+    function syncBoardSizeInputsUI() {
+      const W = state.gridWidth;
+      const H = state.gridHeight;
+      document.getElementById('customWidthInput').value = W;
+      document.getElementById('customHeightInput').value = H;
+      document.getElementById('boardWidthSlider').value = W;
+      document.getElementById('boardHeightSlider').value = H;
+      document.getElementById('sliderWidthValText').textContent = `${W} 格`;
+      document.getElementById('sliderHeightValText').textContent = `${H} 格`;
+
+      const s2W = document.getElementById('step2QuickWInput');
+      const s2H = document.getElementById('step2QuickHInput');
+      if (s2W && s2H) {
+        s2W.value = W;
+        s2H.value = H;
+      }
+
+      const cmW = ((W * state.beadDiameterMm) / 10).toFixed(1);
+      const cmH = ((H * state.beadDiameterMm) / 10).toFixed(1);
+      document.getElementById('targetWidthCmInput').value = cmW;
+      document.getElementById('targetHeightCmInput').value = cmH;
+      document.getElementById('tileTotalComputedText').textContent = `总计 ${W}×${H} 格`;
+    }
+
+    // Resize overall board either by regenerating from image OR preserving manual pixel edits (centered pad/crop)
+    function applyOverallBoardDimensions(newW, newH, preserveEdits = false) {
+      const w = Math.max(10, Math.min(260, Math.round(newW || 52)));
+      const h = Math.max(10, Math.min(260, Math.round(newH || 52)));
+
+      if (preserveEdits && state.grid.length > 0) {
+        pushUndoSnapshot();
+        const oldH = state.grid.length;
+        const oldW = state.grid[0] ? state.grid[0].length : 0;
+        const offsetX = Math.floor((w - oldW) / 2);
+        const offsetY = Math.floor((h - oldH) / 2);
+
+        const resizedGrid = [];
+        for (let y = 0; y < h; y++) {
+          const row = [];
+          const srcY = y - offsetY;
+          for (let x = 0; x < w; x++) {
+            const srcX = x - offsetX;
+            if (srcY >= 0 && srcY < oldH && srcX >= 0 && srcX < oldW) {
+              row.push(state.grid[srcY][srcX]);
+            } else {
+              row.push(null);
+            }
+          }
+          resizedGrid.push(row);
+        }
+        state.gridWidth = w;
+        state.gridHeight = h;
+        state.grid = resizedGrid;
+        recalculatePatternStats();
+        renderAll();
+        return;
+      }
+
+      state.gridWidth = w;
+      state.gridHeight = h;
+      generateBeadPatternFromImage();
+    }
+
+    function setSizeCustomMode(mode) {
+      state.sizeCustomMode = mode;
+      const btnGrid = document.getElementById('sizeModeGridBtn');
+      const btnTile = document.getElementById('sizeModeTileBtn');
+      const btnCm = document.getElementById('sizeModeCmBtn');
+      const pGrid = document.getElementById('sizePanelGridMode');
+      const pTile = document.getElementById('sizePanelTileMode');
+      const pCm = document.getElementById('sizePanelCmMode');
+
+      [btnGrid, btnTile, btnCm].forEach(b => b.className = 'py-1.5 rounded-md text-slate-400 hover:text-white transition');
+      [pGrid, pTile, pCm].forEach(p => p.classList.add('hidden'));
+
+      if (mode === 'grid') {
+        btnGrid.className = 'py-1.5 rounded-md bg-rose-500 text-white transition';
+        pGrid.classList.remove('hidden');
+      } else if (mode === 'tile') {
+        btnTile.className = 'py-1.5 rounded-md bg-rose-500 text-white transition';
+        pTile.classList.remove('hidden');
+      } else if (mode === 'cm') {
+        btnCm.className = 'py-1.5 rounded-md bg-rose-500 text-white transition';
+        pCm.classList.remove('hidden');
+      }
+    }
+
+    document.getElementById('sizeModeGridBtn').addEventListener('click', () => setSizeCustomMode('grid'));
+    document.getElementById('sizeModeTileBtn').addEventListener('click', () => setSizeCustomMode('tile'));
+    document.getElementById('sizeModeCmBtn').addEventListener('click', () => setSizeCustomMode('cm'));
+
+    document.getElementById('quickBoardSizeModalBtn').addEventListener('click', () => {
+      setStep(1);
+      const sec = document.getElementById('boardSizeCustomSection');
+      if (sec) {
+        sec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        sec.classList.add('ring-2', 'ring-rose-500');
+        setTimeout(() => sec.classList.remove('ring-2', 'ring-rose-500'), 1600);
+      }
+    });
+
+    // Lock aspect ratio toggle
+    document.getElementById('lockAspectBtn').addEventListener('click', () => {
+      state.lockAspect = !state.lockAspect;
+      state.aspectRatio = state.gridWidth / Math.max(1, state.gridHeight);
+      const btn = document.getElementById('lockAspectBtn');
+      btn.classList.toggle('bg-rose-500/25', state.lockAspect);
+      btn.classList.toggle('border-rose-500', state.lockAspect);
+      showToast(state.lockAspect ? '已锁定图版宽高比' : '已解除宽高比锁定');
+    });
+
+    document.getElementById('applyCustomSizeBtn').addEventListener('click', () => {
+      const w = Math.max(10, Math.min(260, parseInt(document.getElementById('customWidthInput').value, 10) || 52));
+      const h = Math.max(10, Math.min(260, parseInt(document.getElementById('customHeightInput').value, 10) || 52));
+      applyOverallBoardDimensions(w, h, false);
+      showToast(`已生成自定义整体图版尺寸：${w}×${h} 格`);
+    });
+
+    document.getElementById('boardWidthSlider').addEventListener('input', (e) => {
+      const w = Number(e.target.value);
+      let h = state.gridHeight;
+      if (state.lockAspect) {
+        h = Math.max(10, Math.min(260, Math.round(w / (state.aspectRatio || 1))));
+      }
+      applyOverallBoardDimensions(w, h, false);
+    });
+
+    document.getElementById('boardHeightSlider').addEventListener('input', (e) => {
+      const h = Number(e.target.value);
+      let w = state.gridWidth;
+      if (state.lockAspect) {
+        w = Math.max(10, Math.min(260, Math.round(h * (state.aspectRatio || 1))));
+      }
+      applyOverallBoardDimensions(w, h, false);
+    });
+
+    document.getElementById('fitImageAspectBtn').addEventListener('click', () => {
+      if (!state.sourceImage) return;
+      const imgW = state.sourceImage.width || state.sourceImage.naturalWidth || 256;
+      const imgH = state.sourceImage.height || state.sourceImage.naturalHeight || 256;
+      const base = Math.max(state.gridWidth, state.gridHeight);
+      let newW, newH;
+      if (imgW >= imgH) {
+        newW = base;
+        newH = Math.max(10, Math.round((base * imgH) / imgW));
+      } else {
+        newH = base;
+        newW = Math.max(10, Math.round((base * imgW) / imgH));
+      }
+      applyOverallBoardDimensions(newW, newH, false);
+      showToast(`已按原图比例自适应图版：${newW}×${newH} 格`);
+    });
+
+    document.getElementById('swapBoardOrientationBtn').addEventListener('click', () => {
+      const w = state.gridHeight;
+      const h = state.gridWidth;
+      applyOverallBoardDimensions(w, h, false);
+      showToast(`已互换图版横竖宽高：${w}×${h} 格`);
+    });
+
+    document.getElementById('resizeKeepEditsBtn').addEventListener('click', () => {
+      const w = Math.max(10, Math.min(260, parseInt(document.getElementById('customWidthInput').value, 10) || state.gridWidth));
+      const h = Math.max(10, Math.min(260, parseInt(document.getElementById('customHeightInput').value, 10) || state.gridHeight));
+      applyOverallBoardDimensions(w, h, true);
+      showToast(`已扩缩整体图版至 ${w}×${h} 格（保留手绘内容）`);
+    });
+
+    document.getElementById('step2ExpandKeepBtn').addEventListener('click', () => {
+      const w = Math.max(10, Math.min(260, parseInt(document.getElementById('step2QuickWInput').value, 10) || state.gridWidth));
+      const h = Math.max(10, Math.min(260, parseInt(document.getElementById('step2QuickHInput').value, 10) || state.gridHeight));
+      applyOverallBoardDimensions(w, h, true);
+      showToast(`已扩缩画布至 ${w}×${h} 格（保留手绘修改）`);
+    });
+
+    // Multi-Board Splicing Controls
+    function updateFromTileSplicing() {
+      const specVal = document.getElementById('singleTileSpecSelect').value;
+      const customRow = document.getElementById('customSingleTileRow');
+      if (specVal === 'custom') {
+        customRow.classList.remove('hidden');
+        state.tileUnitW = Math.max(10, Math.min(100, parseInt(document.getElementById('customUnitWInput').value, 10) || 29));
+        state.tileUnitH = Math.max(10, Math.min(100, parseInt(document.getElementById('customUnitHInput').value, 10) || 29));
+      } else {
+        customRow.classList.add('hidden');
+        const unit = parseInt(specVal, 10) || 52;
+        state.tileUnitW = unit;
+        state.tileUnitH = unit;
+      }
+      state.tileCountX = Number(document.getElementById('tileCountXSlider').value) || 1;
+      state.tileCountY = Number(document.getElementById('tileCountYSlider').value) || 1;
+      document.getElementById('tileCountXText').textContent = `${state.tileCountX} 块`;
+      document.getElementById('tileCountYText').textContent = `${state.tileCountY} 块`;
+
+      const totalW = Math.min(260, state.tileUnitW * state.tileCountX);
+      const totalH = Math.min(260, state.tileUnitH * state.tileCountY);
+      applyOverallBoardDimensions(totalW, totalH, false);
+    }
+
+    document.getElementById('singleTileSpecSelect').addEventListener('change', updateFromTileSplicing);
+    document.getElementById('customUnitWInput').addEventListener('change', updateFromTileSplicing);
+    document.getElementById('customUnitHInput').addEventListener('change', updateFromTileSplicing);
+    document.getElementById('tileCountXSlider').addEventListener('input', updateFromTileSplicing);
+    document.getElementById('tileCountYSlider').addEventListener('input', updateFromTileSplicing);
+    document.getElementById('showTileSplitLinesCheck').addEventListener('change', (e) => {
+      state.showTileSplitLines = e.target.checked;
+      renderMainCanvas();
+    });
+
+    // Physical Size (cm) Controls
+    document.getElementById('beadMmDiameterSelect').addEventListener('change', (e) => {
+      state.beadDiameterMm = parseFloat(e.target.value) || 5.0;
+      recalculatePatternStats();
+      showToast(`已切换拼豆直径规格：${state.beadDiameterMm} mm`);
+    });
+
+    document.getElementById('applyCmSizeBtn').addEventListener('click', () => {
+      const cmW = Math.max(2, Math.min(130, parseFloat(document.getElementById('targetWidthCmInput').value) || 26));
+      const cmH = Math.max(2, Math.min(130, parseFloat(document.getElementById('targetHeightCmInput').value) || 26));
+      const gridW = Math.max(10, Math.min(260, Math.round((cmW * 10) / state.beadDiameterMm)));
+      const gridH = Math.max(10, Math.min(260, Math.round((cmH * 10) / state.beadDiameterMm)));
+      applyOverallBoardDimensions(gridW, gridH, false);
+      showToast(`已按 ${cmW}×${cmH}cm 换算生成 ${gridW}×${gridH} 格图版`);
+    });
+
+    // Padding & Fit Mode
+    document.getElementById('fitModeContainBtn').addEventListener('click', () => {
+      state.imageFitMode = 'contain';
+      document.getElementById('fitModeContainBtn').className = 'px-2 py-0.5 rounded bg-rose-500 text-white font-medium transition';
+      document.getElementById('fitModeCoverBtn').className = 'px-2 py-0.5 rounded text-slate-400 hover:text-white transition';
+      generateBeadPatternFromImage();
+    });
+
+    document.getElementById('fitModeCoverBtn').addEventListener('click', () => {
+      state.imageFitMode = 'cover';
+      document.getElementById('fitModeCoverBtn').className = 'px-2 py-0.5 rounded bg-rose-500 text-white font-medium transition';
+      document.getElementById('fitModeContainBtn').className = 'px-2 py-0.5 rounded text-slate-400 hover:text-white transition';
+      generateBeadPatternFromImage();
+    });
+
+    document.getElementById('boardPaddingSlider').addEventListener('input', (e) => {
+      state.boardPadding = Number(e.target.value) || 0;
+      document.getElementById('boardPaddingValText').textContent = `${state.boardPadding} 格`;
+      generateBeadPatternFromImage();
+    });
+
+    // Color Quantity Slider & Quick Nodes
+    const colorSlider = document.getElementById('colorCountSlider');
+    colorSlider.addEventListener('input', (e) => {
+      state.maxColors = Number(e.target.value);
+      document.getElementById('colorLimitValueLabel').textContent = `${state.maxColors} 色 ◆`;
+      generateBeadPatternFromImage();
+    });
+
+    document.querySelectorAll('.color-cap-node').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cap = Number(btn.dataset.colorcap);
+        state.maxColors = cap;
+        colorSlider.value = cap;
+        document.getElementById('colorLimitValueLabel').textContent = `${cap} 色 ◆`;
+        generateBeadPatternFromImage();
+      });
+    });
+
+    document.getElementById('onlyKitColorsCheck').addEventListener('change', (e) => {
+      state.onlyKitColors = e.target.checked;
+      generateBeadPatternFromImage();
+    });
+
+    // Step 2 Editing Tools & Undo/Redo
+    document.querySelectorAll('.edit-tool-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setEditTool(btn.dataset.edittool);
+      });
+    });
+
+    document.getElementById('undoEditBtn').addEventListener('click', () => {
+      if (state.undoStack.length === 0) return;
+      state.redoStack.push(state.grid.map(r => [...r]));
+      state.grid = state.undoStack.pop();
+      recalculatePatternStats();
+      renderAll();
+    });
+
+    document.getElementById('redoEditBtn').addEventListener('click', () => {
+      if (state.redoStack.length === 0) return;
+      state.undoStack.push(state.grid.map(r => [...r]));
+      state.grid = state.redoStack.pop();
+      recalculatePatternStats();
+      renderAll();
+    });
+
+    document.getElementById('paletteTabUsed').addEventListener('click', () => {
+      state.paletteTab = 'used';
+      document.getElementById('paletteTabUsed').className = 'py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white shadow';
+      document.getElementById('paletteTabAll').className = 'py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white';
+      document.getElementById('allColorsSearchWrap').classList.add('hidden');
+      renderStep2Palette();
+    });
+
+    document.getElementById('paletteTabAll').addEventListener('click', () => {
+      state.paletteTab = 'all';
+      document.getElementById('paletteTabAll').className = 'py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white shadow';
+      document.getElementById('paletteTabUsed').className = 'py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white';
+      document.getElementById('allColorsSearchWrap').classList.remove('hidden');
+      renderStep2Palette();
+    });
+
+    document.getElementById('paletteSearchInput').addEventListener('input', (e) => {
+      state.paletteSearch = e.target.value;
+      renderStep2Palette();
+    });
+
+    // Step 3 Assist Controls
+    document.getElementById('sortUsageBtn').addEventListener('click', () => {
+      state.assistSort = 'usage';
+      document.getElementById('sortUsageBtn').className = 'px-2.5 py-1 rounded bg-rose-500 text-white font-medium transition';
+      document.getElementById('sortCodeBtn').className = 'px-2.5 py-1 rounded text-slate-400 hover:text-white transition';
+      renderStep3Checklist();
+    });
+
+    document.getElementById('sortCodeBtn').addEventListener('click', () => {
+      state.assistSort = 'code';
+      document.getElementById('sortCodeBtn').className = 'px-2.5 py-1 rounded bg-rose-500 text-white font-medium transition';
+      document.getElementById('sortUsageBtn').className = 'px-2.5 py-1 rounded text-slate-400 hover:text-white transition';
+      renderStep3Checklist();
+    });
+
+    document.getElementById('resetProgressBtn').addEventListener('click', () => {
+      state.checkedColorCodes.clear();
+      state.highlightedColorCode = null;
+      updateHighlightBanner();
+      renderStep3Checklist();
+      renderMainCanvas();
+      showToast('已清空拼豆打卡记录');
+    });
+
+    document.getElementById('checkAllColorsBox').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        state.usedColorsSummary.forEach(u => state.checkedColorCodes.add(u.bead.code));
+      } else {
+        state.checkedColorCodes.clear();
+      }
+      renderStep3Checklist();
+      renderMainCanvas();
+    });
+
+    document.getElementById('dimCheckedOnCanvasBox').addEventListener('change', (e) => {
+      state.dimCheckedOnCanvas = e.target.checked;
+      renderMainCanvas();
+    });
+
+    document.getElementById('clearHighlightBtn').addEventListener('click', () => {
+      state.highlightedColorCode = null;
+      updateHighlightBanner();
+      renderStep3Checklist();
+      renderMainCanvas();
+    });
+
+    // Save Version & Export Modal
+    document.getElementById('saveVersionBtn').addEventListener('click', () => {
+      state.savedSnapshots++;
+      document.getElementById('savedVersionsCountBadge').textContent = `已存 ${state.savedSnapshots} 版`;
+      showToast(`已保存当前拼豆图纸版本 V${state.savedSnapshots}`);
+    });
+
+    function openExportModal() {
+      generateHighResExportCanvas();
+      document.getElementById('exportModal').classList.remove('hidden');
+    }
+
+    document.getElementById('topExportBtn').addEventListener('click', openExportModal);
+    document.getElementById('step3ExportBtn').addEventListener('click', openExportModal);
+    document.getElementById('closeExportModalBtn').addEventListener('click', () => {
+      document.getElementById('exportModal').classList.add('hidden');
+    });
+
+    document.getElementById('downloadPngBtn').addEventListener('click', () => {
+      const exportCanvas = document.getElementById('exportSheetCanvas');
+      const link = document.createElement('a');
+      const title = (document.getElementById('projectTitleInput').value || '拼豆图纸').trim();
+      link.download = `${title}-${state.gridWidth}x${state.gridHeight}.png`;
+      link.href = exportCanvas.toDataURL('image/png');
+      link.click();
+      showToast('高清拼豆图纸 PNG 已开始下载');
+    });
+
+    document.getElementById('downloadCsvBtn').addEventListener('click', () => {
+      const rows = [['色号', '颜色名称', 'HEX', '颗粒数量', '是否打卡完成']];
+      state.usedColorsSummary.forEach(({ bead, count }) => {
+        rows.push([
+          getDisplayCode(bead),
+          bead.name,
+          bead.hex,
+          String(count),
+          state.checkedColorCodes.has(bead.code) ? '已完成' : '未完成'
+        ]);
+      });
+      const csvContent = '\uFEFF' + rows.map(r => r.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `拼豆色号用量清单-${state.gridWidth}x${state.gridHeight}.csv`;
+      link.click();
+      showToast('色号统计清单 CSV 已导出');
+    });
+
+    window.addEventListener('resize', () => {
+      renderMainCanvas();
+    });
+
+    // =========================================================================
+    // 12. INITIALIZATION ON LOAD
+    // =========================================================================
+    window.addEventListener('load', () => {
+      renderColorStyleCards();
+      renderBrandSpecifications();
+      updateCreationTimestamp();
+
+      const defaultThumb = document.getElementById('warhammerThumbImg');
+      if (defaultThumb && defaultThumb.complete && defaultThumb.naturalWidth > 0) {
+        state.sourceImage = defaultThumb;
+        generateBeadPatternFromImage();
+      } else if (defaultThumb) {
+        defaultThumb.onload = () => {
+          state.sourceImage = defaultThumb;
+          generateBeadPatternFromImage();
+        };
+        defaultThumb.onerror = () => {
+          state.sourceImage = createProceduralPresetImage('potion');
+          generateBeadPatternFromImage();
+        };
+      } else {
+        state.sourceImage = createProceduralPresetImage('potion');
+        generateBeadPatternFromImage();
+      }
+    });
+  </script>
+</body>
+</html>
